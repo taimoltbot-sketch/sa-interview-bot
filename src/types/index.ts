@@ -56,5 +56,5 @@ export type MessageType =
   | { type: 'REQUEST_DOWNLOAD' }
   | { type: 'BOT_MESSAGE'; payload: ChatMessage }
   | { type: 'STATE_UPDATE'; payload: Partial<GraphState> }
-  | { type: 'PREVIEW_READY'; payload: { document: string; mermaid: string } }
+  | { type: 'PREVIEW_READY'; payload: { document: string; mermaid: string; systemName?: string } }
   | { type: 'ERROR'; payload: string }
