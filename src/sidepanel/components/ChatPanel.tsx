@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import type { ChatMessage } from '../../types/index'
 
@@ -45,8 +45,32 @@ const SendIcon = () => (
 
 export default function ChatPanel({ messages, onSend, disabled, loading }: Props) {
   const [input, setInput] = useState('')
+  const [picked, setPicked] = useState<Set<string>>(new Set())
   const bottomRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  const lastBotIdx = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === 'bot') return i
+    }
+    return -1
+  }, [messages])
+
+  useEffect(() => { setPicked(new Set()) }, [lastBotIdx])
+
+  const togglePick = (s: string) => {
+    setPicked(prev => {
+      const next = new Set(prev)
+      if (next.has(s)) next.delete(s)
+      else next.add(s)
+      return next
+    })
+  }
+  const sendPicked = () => {
+    if (picked.size === 0 || disabled) return
+    onSend(Array.from(picked).join('、'))
+    setPicked(new Set())
+  }
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -81,8 +105,9 @@ export default function ChatPanel({ messages, onSend, disabled, loading }: Props
       <div className="messages">
         <AnimatePresence initial={false}>
           {messages.map((msg, i) => {
-            const isLastBot = msg.role === 'bot' && i === messages.length - 1
+            const isLastBot = msg.role === 'bot' && i === lastBotIdx
             const showSuggestions = isLastBot && !disabled && msg.suggestions && msg.suggestions.length > 0
+            const isMulti = !!msg.multiSelect
             return (
               <motion.div
                 key={i}
@@ -99,18 +124,38 @@ export default function ChatPanel({ messages, onSend, disabled, loading }: Props
                 )}
                 <div className="bubble">{msg.content}</div>
                 {showSuggestions && (
-                  <div className="suggestions">
-                    {msg.suggestions!.map((s, j) => (
+                  <>
+                    {isMulti && (
+                      <div className="suggestions-hint">複選題 ・ 選擇所有適用的選項</div>
+                    )}
+                    <div className={`suggestions ${isMulti ? 'suggestions-multi' : ''}`}>
+                      {msg.suggestions!.map((s, j) => {
+                        const isPicked = picked.has(s)
+                        return (
+                          <motion.button
+                            key={j}
+                            className={`suggestion-chip ${isMulti && isPicked ? 'suggestion-chip-picked' : ''}`}
+                            onClick={() => isMulti ? togglePick(s) : onSend(s)}
+                            whileTap={{ scale: 0.95 }}
+                          >
+                            {isMulti && <span className="chip-check">{isPicked ? '✓' : ''}</span>}
+                            {s}
+                          </motion.button>
+                        )
+                      })}
+                    </div>
+                    {isMulti && picked.size > 0 && (
                       <motion.button
-                        key={j}
-                        className="suggestion-chip"
-                        onClick={() => onSend(s)}
-                        whileTap={{ scale: 0.95 }}
+                        className="suggestions-submit"
+                        onClick={sendPicked}
+                        initial={{ opacity: 0, y: -4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        whileTap={{ scale: 0.97 }}
                       >
-                        {s}
+                        送出已選 {picked.size} 項
                       </motion.button>
-                    ))}
-                  </div>
+                    )}
+                  </>
                 )}
               </motion.div>
             )

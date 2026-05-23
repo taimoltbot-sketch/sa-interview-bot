@@ -158,7 +158,8 @@ async function injectPrompt(text: string): Promise<void> {
 }
 
 // Wait until the send button is no longer aria-disabled (Angular has processed the input)
-async function waitForSendButtonEnabled(timeout = 8000): Promise<HTMLButtonElement | null> {
+// Long timeout because background tabs are throttled to 1Hz polling
+async function waitForSendButtonEnabled(timeout = 30000): Promise<HTMLButtonElement | null> {
   const deadline = Date.now() + timeout
   while (Date.now() < deadline) {
     for (const selector of SEND_BUTTON_SELECTORS) {

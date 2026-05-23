@@ -7,6 +7,7 @@ export function askQuestionNode(state: GraphState): Partial<GraphState> {
     content,
     timestamp: Date.now(),
     suggestions: state.pendingSuggestions?.length ? state.pendingSuggestions : undefined,
+    multiSelect: state.pendingSuggestions?.length ? state.pendingMultiSelect : undefined,
   }
   return {
     conversationHistory: [...state.conversationHistory, botMessage],

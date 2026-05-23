@@ -20,11 +20,12 @@ export async function decideNextQuestionNode(
 
   const raw = await tabManager.sendToTab('decision', DECIDE_NEXT_QUESTION_PROMPT(stateStr))
   const jsonMatch = raw.match(/\{[\s\S]*\}/)
-  if (!jsonMatch) return { pendingQuestion: '請描述一下這個系統的主要目的是什麼？', pendingSuggestions: [] }
-  const parsed = JSON.parse(jsonMatch[0]) as { nextPhase?: string; question?: string; suggestions?: string[] }
+  if (!jsonMatch) return { pendingQuestion: '請描述一下這個系統的主要目的是什麼？', pendingSuggestions: [], pendingMultiSelect: false }
+  const parsed = JSON.parse(jsonMatch[0]) as { nextPhase?: string; question?: string; suggestions?: string[]; multiSelect?: boolean }
   return {
     phase: (parsed.nextPhase || 'overview') as GraphState['phase'],
     pendingQuestion: parsed.question || '請描述一下這個系統的主要目的是什麼？',
     pendingSuggestions: Array.isArray(parsed.suggestions) ? parsed.suggestions : [],
+    pendingMultiSelect: parsed.multiSelect === true,
   }
 }

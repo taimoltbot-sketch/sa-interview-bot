@@ -68,6 +68,13 @@ export class TabManager {
       }
     }
 
+    // Re-apply autoDiscardable on every restore — tabs may have been reset
+    await Promise.all(
+      Object.values(this.registry).map(tid =>
+        chrome.tabs.update(tid, { autoDiscardable: false }).catch(() => {})
+      )
+    )
+
     await this.saveSessions()
     this.attachTabRemovedListener()
     return true
@@ -86,6 +93,13 @@ export class TabManager {
       understanding: understandingTab.id!,
       output: outputTab.id!,
     }
+
+    // Prevent Chrome from auto-discarding our brain tabs under memory pressure
+    await Promise.all([
+      chrome.tabs.update(decisionTab.id!,     { autoDiscardable: false }).catch(() => {}),
+      chrome.tabs.update(understandingTab.id!, { autoDiscardable: false }).catch(() => {}),
+      chrome.tabs.update(outputTab.id!,       { autoDiscardable: false }).catch(() => {}),
+    ])
 
     // Init prompts run in parallel — they target different tabs, so no contention
     await Promise.all([
@@ -145,19 +159,33 @@ export class TabManager {
     // Content script didn't respond in time — proceed anyway, sendToTab will retry
   }
 
+  // Wake a background-throttled tab by activating it momentarily.
+  // Used as fallback when sendMessage retries — minimal user disruption.
+  private async wakeTab(tabId: number): Promise<void> {
+    try {
+      const tab = await chrome.tabs.get(tabId)
+      if (!tab.active) {
+        await chrome.tabs.update(tabId, { active: true })
+        await new Promise(r => setTimeout(r, 250))
+      }
+    } catch { /* tab missing — sendToTab will retry */ }
+  }
+
   async sendToTab(role: TabRole, prompt: string): Promise<string> {
     const tabId = this.registry[role]
     let lastError: Error = new Error('Unknown error')
 
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
       try {
+        // On retry, wake the tab — first attempt assumed to work, only disrupt if needed
+        if (attempt > 1) await this.wakeTab(tabId)
+
         const response = await chrome.tabs.sendMessage(tabId, {
           type: 'SEND_PROMPT',
           payload: prompt,
         }) as { success: boolean; response?: string; error?: string }
 
         if (!response.success) {
-          // Gemini UI is stuck — reload the tab, re-init the brain, then retry
           if (response.error === 'GEMINI_STUCK') {
             await this.reloadTab(role)
             continue
@@ -190,6 +218,8 @@ export class TabManager {
 
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
       try {
+        if (attempt > 1) await this.wakeTab(tabId)
+
         const response = await chrome.tabs.sendMessage(tabId, {
           type: 'SEND_PROMPT_WITH_IMAGES',
           payload: { prompt, images },

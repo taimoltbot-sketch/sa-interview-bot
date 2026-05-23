@@ -41,6 +41,7 @@ export interface GraphState {
   conversationHistory: ChatMessage[]
   pendingQuestion: string
   pendingSuggestions: string[]
+  pendingMultiSelect: boolean
   revisionTarget: string
   answerCountAtLastOutput: number
 }
@@ -50,6 +51,7 @@ export interface ChatMessage {
   content: string
   timestamp: number
   suggestions?: string[]
+  multiSelect?: boolean
 }
 
 export type MessageType =

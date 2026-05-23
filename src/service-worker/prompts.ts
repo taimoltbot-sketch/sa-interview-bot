@@ -29,6 +29,9 @@ export const INITIAL_SETUP_PROMPT = (fileContent: string | null) => `${
 2. 識別還需要補充的業務資訊（依重要性排序）
 3. 決定第一個要問 SA 的問題（用繁體中文，友善語氣）
 4. 根據資料推測，提供 2-4 個你認為最可能的答案選項（讓 SA 快速勾選）；若無法推測就回傳空陣列
+5. 判斷這題的選項是「**單選**」還是「**複選**」：
+   - 互斥/二選一（例如 是/否、A/B/C 三擇一）→ multiSelect = false
+   - 可以同時都成立（例如「有哪些角色？」、「整合哪些系統？」）→ multiSelect = true
 
 \`firstQuestion\` 必須是非空字串。回傳格式：
 {
@@ -40,8 +43,9 @@ export const INITIAL_SETUP_PROMPT = (fileContent: string | null) => `${
   },
   "missingInfo": ["角色定義", "主流程描述", "例外處理"],
   "nextPhase": "overview",
-  "firstQuestion": "請問這個系統主要是用來做什麼的？",
-  "suggestions": ["建議答案1", "建議答案2"]
+  "firstQuestion": "請問這個系統有哪些使用者角色？",
+  "suggestions": ["管理員", "現場工人", "工地主任"],
+  "multiSelect": true
 }`;
 
 export const ANALYZE_FILES_PROMPT = (fileContent: string) => `這是 SA 上傳的系統資料：
@@ -73,11 +77,16 @@ ${state}
 決定下一步應該問哪個問題，並根據已知資訊主動推測 2-4 個你認為最可能的答案，讓 SA 快速勾選。
 若你完全無法推測，suggestions 回傳空陣列。
 
+也要判斷這題的選項是「**單選**」還是「**複選**」：
+- 互斥/二選一（例如 是/否、選一個流程方向）→ multiSelect = false
+- 可以同時都成立（例如「有哪些功能？」、「整合哪些系統？」）→ multiSelect = true
+
 回傳 JSON（不要有任何 markdown 標記）：
 {
   "nextPhase": "overview | roles | features | feature_trigger | feature_main | feature_exception | feature_data | feature_end | more_features | integration | rules | done",
   "question": "要向 SA 顯示的問題（繁體中文，友善語氣）",
-  "suggestions": ["建議答案1", "建議答案2"]
+  "suggestions": ["建議答案1", "建議答案2"],
+  "multiSelect": false
 }`;
 
 // ============================================================================

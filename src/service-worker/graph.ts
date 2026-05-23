@@ -28,6 +28,7 @@ const GraphStateAnnotation = Annotation.Root({
   conversationHistory: Annotation<GraphState['conversationHistory']>({ reducer: (_a, b) => b, default: () => [] }),
   pendingQuestion: Annotation<string>({ reducer: (_a, b) => b, default: () => '' }),
   pendingSuggestions: Annotation<string[]>({ reducer: (_a, b) => b, default: () => [] }),
+  pendingMultiSelect: Annotation<boolean>({ reducer: (_a, b) => b, default: () => false }),
   revisionTarget: Annotation<string>({ reducer: (_a, b) => b, default: () => '' }),
   answerCountAtLastOutput: Annotation<number>({ reducer: (_a, b) => b, default: () => 0 }),
 })
