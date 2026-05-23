@@ -4,6 +4,7 @@ import {
   UNDERSTANDING_BRAIN_INIT,
   OUTPUT_BRAIN_INIT,
 } from './prompts'
+import { notifySubStatus, clearSubStatus } from './notify'
 
 const GEMINI_URL = 'https://gemini.google.com/app'
 const MAX_RETRIES = 8
@@ -159,6 +160,21 @@ export class TabManager {
     // Content script didn't respond in time — proceed anyway, sendToTab will retry
   }
 
+  // Send a chrome.tabs message while progressively updating the sub-status
+  // so the user knows we're past "傳送" and into "等 Gemini 回應" territory.
+  private async sendMessageWithProgress(tabId: number, msg: unknown): Promise<unknown> {
+    notifySubStatus('傳送 prompt 至 Gemini')
+    const t1 = setTimeout(() => notifySubStatus('Gemini 開始生成回應'), 2500)
+    const t2 = setTimeout(() => notifySubStatus('Gemini 思考中，可能需要 10–30 秒'), 12000)
+    const t3 = setTimeout(() => notifySubStatus('回應較長，請再等一下'), 45000)
+    try {
+      return await chrome.tabs.sendMessage(tabId, msg as object)
+    } finally {
+      clearTimeout(t1); clearTimeout(t2); clearTimeout(t3)
+      clearSubStatus()
+    }
+  }
+
   // Wake a background-throttled tab by activating it momentarily.
   // Used as fallback when sendMessage retries — minimal user disruption.
   private async wakeTab(tabId: number): Promise<void> {
@@ -180,7 +196,7 @@ export class TabManager {
         // On retry, wake the tab — first attempt assumed to work, only disrupt if needed
         if (attempt > 1) await this.wakeTab(tabId)
 
-        const response = await chrome.tabs.sendMessage(tabId, {
+        const response = await this.sendMessageWithProgress(tabId, {
           type: 'SEND_PROMPT',
           payload: prompt,
         }) as { success: boolean; response?: string; error?: string }
@@ -220,7 +236,7 @@ export class TabManager {
       try {
         if (attempt > 1) await this.wakeTab(tabId)
 
-        const response = await chrome.tabs.sendMessage(tabId, {
+        const response = await this.sendMessageWithProgress(tabId, {
           type: 'SEND_PROMPT_WITH_IMAGES',
           payload: { prompt, images },
         }) as { success: boolean; response?: string; error?: string }
