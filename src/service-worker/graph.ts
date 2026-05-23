@@ -29,6 +29,10 @@ const GraphStateAnnotation = Annotation.Root({
   pendingQuestion: Annotation<string>({ reducer: (_a, b) => b, default: () => '' }),
   pendingSuggestions: Annotation<string[]>({ reducer: (_a, b) => b, default: () => [] }),
   pendingMultiSelect: Annotation<boolean>({ reducer: (_a, b) => b, default: () => false }),
+  flowReadiness: Annotation<GraphState['flowReadiness']>({
+    reducer: (_a, b) => b,
+    default: () => ({ ready: false, decisionPointsCount: 0, hasExceptionFlow: false, endStatesCount: 0, reason: '' }),
+  }),
   revisionTarget: Annotation<string>({ reducer: (_a, b) => b, default: () => '' }),
   answerCountAtLastOutput: Annotation<number>({ reducer: (_a, b) => b, default: () => 0 }),
   awaitingConfirmation: Annotation<boolean>({ reducer: (_a, b) => b, default: () => false }),

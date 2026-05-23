@@ -42,9 +42,18 @@ export interface GraphState {
   pendingQuestion: string
   pendingSuggestions: string[]
   pendingMultiSelect: boolean
+  flowReadiness: FlowReadiness
   revisionTarget: string
   answerCountAtLastOutput: number
   awaitingConfirmation: boolean
+}
+
+export interface FlowReadiness {
+  ready: boolean
+  decisionPointsCount: number
+  hasExceptionFlow: boolean
+  endStatesCount: number
+  reason: string
 }
 
 export interface ChatMessage {

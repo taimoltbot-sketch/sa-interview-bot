@@ -36,6 +36,13 @@ export function createInitialState(): GraphState {
     pendingQuestion: '',
     pendingSuggestions: [],
     pendingMultiSelect: false,
+    flowReadiness: {
+      ready: false,
+      decisionPointsCount: 0,
+      hasExceptionFlow: false,
+      endStatesCount: 0,
+      reason: '',
+    },
     revisionTarget: '',
     answerCountAtLastOutput: 0,
     awaitingConfirmation: false,

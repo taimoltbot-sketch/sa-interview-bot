@@ -124,17 +124,17 @@ async function handleMessage(message: MessageType): Promise<unknown> {
       const result = await ig.invoke(updatedState) as GraphState
       const lastMsg = result.conversationHistory[result.conversationHistory.length - 1]
 
-      // Auto-trigger flowchart preview: only count answers SINCE last output
+      // Auto-trigger flowchart preview: defer to the decision brain's own assessment
+      // of whether the current module's flow has enough branching to be useful
       const totalAnswers = result.conversationHistory.filter(m => m.role === 'user').length
       const newAnswers = totalAnswers - (result.answerCountAtLastOutput ?? 0)
       const isDone = result.phase === 'done'
-      const hasEnoughInfo =
-        (result.featureList.length > 0 || result.systemOverview) &&
-        result.businessRules &&
-        result.integrations
-      const reachedLimit = newAnswers >= 6
+      const flowReady = result.flowReadiness?.ready === true
+        && result.flowReadiness.decisionPointsCount >= 2
+        && result.flowReadiness.hasExceptionFlow === true
+      const reachedLimit = newAnswers >= 8 // hard ceiling so we don't loop forever
 
-      if (isDone || (hasEnoughInfo && newAnswers >= 3) || reachedLimit) {
+      if (isDone || (flowReady && newAnswers >= 3) || reachedLimit) {
         // STAGE 1: generate quick inline flowchart for SA confirmation (don't run full output yet)
         notifySidePanel({ type: 'GENERATING_OUTPUT' })
         notifyStatus('正在繪製主流程預覽圖...')
