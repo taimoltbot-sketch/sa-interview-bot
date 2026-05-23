@@ -31,30 +31,40 @@ function notifySidePanel(message: MessageType) {
   chrome.runtime.sendMessage(message).catch(() => {})
 }
 
+// Mermaid syntax sniffer — used to validate that a fenced block actually
+// contains a diagram (rather than e.g. JSON or stray prose Gemini wrapped in ```).
+const MERMAID_KEYWORDS = /^(flowchart|graph|sequenceDiagram|classDiagram|stateDiagram|erDiagram|gantt|pie|journey|mindmap|timeline|quadrantChart|requirementDiagram)/m
+
 // Split GENERATE_MERMAID_PROMPT output into individual {title, code} diagrams.
 // Mirrors htmlReport.ts:extractDiagrams so SA's chat review and the downloaded
-// report show the same set.
+// report show the same set. Accepts ``` blocks with OR without the "mermaid"
+// language tag — Gemini occasionally emits plain ``` (sometimes preceded by
+// "Code snippet" from its own UI), but if the content starts with flowchart /
+// sequenceDiagram / etc. it's still a valid diagram.
 function parseDiagrams(mermaidText: string): Array<{ title: string; code: string }> {
   if (!mermaidText) return []
   const out: Array<{ title: string; code: string }> = []
   const sections = mermaidText.split(/(?=^##\s+)/m).filter(s => s.trim())
   for (const section of sections) {
     const titleMatch = section.match(/^##\s+(.+)/m)
-    const codeMatch = section.match(/```mermaid\n([\s\S]*?)```/)
-    if (codeMatch) {
-      out.push({
-        title: titleMatch ? titleMatch[1].trim() : '流程圖',
-        code: codeMatch[1].trim(),
-      })
+    // Walk every fenced block in the section, keep the first one that looks
+    // like mermaid (skips "Code snippet" pseudo-fences or other prose).
+    const allFences = [...section.matchAll(/```(?:mermaid)?\s*\n([\s\S]*?)```/g)]
+    for (const m of allFences) {
+      const code = m[1].trim()
+      if (MERMAID_KEYWORDS.test(code)) {
+        out.push({ title: titleMatch ? titleMatch[1].trim() : '流程圖', code })
+        break
+      }
     }
   }
   if (out.length === 0) {
-    const fences = mermaidText.match(/```mermaid\n([\s\S]*?)```/g) ?? []
-    fences.forEach((f, i) => {
-      out.push({
-        title: `圖 ${i + 1}`,
-        code: f.replace(/```mermaid\n/, '').replace(/```$/, '').trim(),
-      })
+    const fences = [...mermaidText.matchAll(/```(?:mermaid)?\s*\n([\s\S]*?)```/g)]
+    fences.forEach((m, i) => {
+      const code = m[1].trim()
+      if (MERMAID_KEYWORDS.test(code)) {
+        out.push({ title: `圖 ${i + 1}`, code })
+      }
     })
   }
   return out

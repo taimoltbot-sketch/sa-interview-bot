@@ -20,11 +20,15 @@ interface Props {
 
 mermaid.initialize({ startOnLoad: false, theme: 'default', securityLevel: 'loose' })
 
+const MERMAID_KEYWORDS = /^(flowchart|graph|sequenceDiagram|classDiagram|stateDiagram|erDiagram|gantt|pie|journey|mindmap|timeline|quadrantChart|requirementDiagram)/m
+
 function extractMermaidBlocks(text: string): string[] {
-  const matches = text.match(/```mermaid\n([\s\S]*?)```/g) ?? []
-  return matches.map(block =>
-    block.replace(/```mermaid\n/, '').replace(/```$/, '').trim()
-  )
+  const out: string[] = []
+  for (const m of text.matchAll(/```(?:mermaid)?\s*\n([\s\S]*?)```/g)) {
+    const code = m[1].trim()
+    if (MERMAID_KEYWORDS.test(code)) out.push(code)
+  }
+  return out
 }
 
 export default function Preview({ document, mermaidText, systemName, htmlContent, onRequestRevision, onContinueDiscussion }: Props) {

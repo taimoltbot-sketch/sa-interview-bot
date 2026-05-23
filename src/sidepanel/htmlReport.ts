@@ -1,27 +1,32 @@
 import { marked } from 'marked'
 
-// Split mermaid text by "## heading" then pull the ```mermaid block from each section
+const MERMAID_KEYWORDS = /^(flowchart|graph|sequenceDiagram|classDiagram|stateDiagram|erDiagram|gantt|pie|journey|mindmap|timeline|quadrantChart|requirementDiagram)/m
+
+// Split mermaid text by "## heading" then pull the first valid mermaid block from each section.
+// Tolerates ``` blocks without "mermaid" language tag (Gemini sometimes omits it,
+// sometimes wraps with "Code snippet" pseudo-fences) — validates by sniffing the first line.
 function extractDiagrams(text: string): Array<{ title: string; code: string }> {
   const sections = text.split(/(?=^##\s+)/m).filter(s => s.trim())
   const diagrams: Array<{ title: string; code: string }> = []
   for (const section of sections) {
     const titleMatch = section.match(/^##\s+(.+)/m)
-    const codeMatch = section.match(/```mermaid\n([\s\S]*?)```/)
-    if (codeMatch) {
-      diagrams.push({
-        title: titleMatch ? titleMatch[1].trim() : '流程圖',
-        code: codeMatch[1].trim(),
-      })
+    const allFences = [...section.matchAll(/```(?:mermaid)?\s*\n([\s\S]*?)```/g)]
+    for (const m of allFences) {
+      const code = m[1].trim()
+      if (MERMAID_KEYWORDS.test(code)) {
+        diagrams.push({ title: titleMatch ? titleMatch[1].trim() : '流程圖', code })
+        break
+      }
     }
   }
-  // Fallback: no ## headings but has ```mermaid blocks → wrap them with generic titles
+  // Fallback: no ## headings — scan all fences
   if (diagrams.length === 0) {
-    const fences = text.match(/```mermaid\n([\s\S]*?)```/g) ?? []
-    fences.forEach((f, i) => {
-      diagrams.push({
-        title: `圖 ${i + 1}`,
-        code: f.replace(/```mermaid\n/, '').replace(/```$/, '').trim(),
-      })
+    const fences = [...text.matchAll(/```(?:mermaid)?\s*\n([\s\S]*?)```/g)]
+    fences.forEach((m, i) => {
+      const code = m[1].trim()
+      if (MERMAID_KEYWORDS.test(code)) {
+        diagrams.push({ title: `圖 ${i + 1}`, code })
+      }
     })
   }
   return diagrams
