@@ -193,8 +193,10 @@ export class TabManager {
 
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
       try {
-        // On retry, wake the tab — first attempt assumed to work, only disrupt if needed
-        if (attempt > 1) await this.wakeTab(tabId)
+        if (attempt > 1) {
+          notifySubStatus(`第 ${attempt} 次嘗試，喚醒 Gemini tab`)
+          await this.wakeTab(tabId)
+        }
 
         const response = await this.sendMessageWithProgress(tabId, {
           type: 'SEND_PROMPT',
@@ -203,7 +205,9 @@ export class TabManager {
 
         if (!response.success) {
           if (response.error === 'GEMINI_STUCK') {
+            notifySubStatus('Gemini UI 卡住，正在重新載入頁面')
             await this.reloadTab(role)
+            notifySubStatus('頁面已重新載入，重新傳送 prompt')
             continue
           }
           throw new Error(response.error ?? 'Tab returned failure')
@@ -211,7 +215,11 @@ export class TabManager {
         return response.response!
       } catch (err) {
         lastError = err as Error
-        if (attempt < MAX_RETRIES) await new Promise(r => setTimeout(r, 1500 * attempt))
+        if (attempt < MAX_RETRIES) {
+          const delaySec = (1500 * attempt) / 1000
+          notifySubStatus(`等待 ${delaySec.toFixed(1)} 秒後重試`)
+          await new Promise(r => setTimeout(r, 1500 * attempt))
+        }
       }
     }
     throw new Error(`Tab ${role} failed after ${MAX_RETRIES} retries: ${lastError.message}`)
@@ -234,7 +242,10 @@ export class TabManager {
 
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
       try {
-        if (attempt > 1) await this.wakeTab(tabId)
+        if (attempt > 1) {
+          notifySubStatus(`第 ${attempt} 次嘗試，喚醒 Gemini tab`)
+          await this.wakeTab(tabId)
+        }
 
         const response = await this.sendMessageWithProgress(tabId, {
           type: 'SEND_PROMPT_WITH_IMAGES',
@@ -243,7 +254,9 @@ export class TabManager {
 
         if (!response.success) {
           if (response.error === 'GEMINI_STUCK') {
+            notifySubStatus('Gemini UI 卡住，正在重新載入頁面')
             await this.reloadTab(role)
+            notifySubStatus('頁面已重新載入，重新傳送 prompt')
             continue
           }
           throw new Error(response.error ?? 'Tab returned failure')
@@ -251,7 +264,11 @@ export class TabManager {
         return response.response!
       } catch (err) {
         lastError = err as Error
-        if (attempt < MAX_RETRIES) await new Promise(r => setTimeout(r, 1500 * attempt))
+        if (attempt < MAX_RETRIES) {
+          const delaySec = (1500 * attempt) / 1000
+          notifySubStatus(`等待 ${delaySec.toFixed(1)} 秒後重試`)
+          await new Promise(r => setTimeout(r, 1500 * attempt))
+        }
       }
     }
     throw new Error(`Tab ${role} failed after ${MAX_RETRIES} retries: ${lastError.message}`)
