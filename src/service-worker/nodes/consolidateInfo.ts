@@ -1,11 +1,13 @@
 import type { GraphState } from '../../types/index'
 import { CONSOLIDATE_PROMPT } from '../prompts'
 import type { TabManager } from '../tabManager'
+import { notifyStatus } from '../notify'
 
 export async function consolidateInfoNode(
   state: GraphState,
   tabManager: TabManager
 ): Promise<Partial<GraphState>> {
+  notifyStatus('正在整合所有對話資訊...')
   const conversationStr = state.conversationHistory
     .map(m => `${m.role === 'bot' ? 'AI問題' : 'SA回答'}: ${m.content}`)
     .join('\n\n')

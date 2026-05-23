@@ -67,4 +67,5 @@ export type MessageType =
   | { type: 'STATE_UPDATE'; payload: Partial<GraphState> }
   | { type: 'PREVIEW_READY'; payload: { document: string; mermaid: string; systemName?: string } }
   | { type: 'GENERATING_OUTPUT' }
+  | { type: 'STATUS_UPDATE'; payload: string }
   | { type: 'ERROR'; payload: string }

@@ -1,6 +1,7 @@
 import type { GraphState } from '../../types/index'
 import { GENERATE_MERMAID_PROMPT } from '../prompts'
 import type { TabManager } from '../tabManager'
+import { notifyStatus } from '../notify'
 
 function extractBetweenMarkers(text: string, start: string, end: string): string {
   let result = text
@@ -16,6 +17,7 @@ export async function generateMermaidNode(
   state: GraphState,
   tabManager: TabManager
 ): Promise<Partial<GraphState>> {
+  notifyStatus('正在繪製詳細流程圖與決策圖...')
   const raw = await tabManager.sendToTab('output', GENERATE_MERMAID_PROMPT(state.generatedDocument))
   const mermaid = extractBetweenMarkers(raw, '===MMD_START===', '===MMD_END===')
   return { generatedMermaid: mermaid }

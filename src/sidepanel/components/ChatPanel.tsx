@@ -19,9 +19,10 @@ interface Props {
   onSend: (text: string, displayText?: string) => void
   disabled?: boolean
   loading?: boolean
+  loadingStatus?: string
 }
 
-function TypingIndicator() {
+function TypingIndicator({ status }: { status?: string }) {
   return (
     <motion.div
       className="typing-wrap"
@@ -35,6 +36,20 @@ function TypingIndicator() {
         <span className="bot-name">Assistant</span>
       </div>
       <div className="typing-indicator">
+        <AnimatePresence mode="wait">
+          {status ? (
+            <motion.span
+              key={status}
+              className="typing-status"
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -2 }}
+              transition={{ duration: 0.2 }}
+            >
+              {status}
+            </motion.span>
+          ) : null}
+        </AnimatePresence>
         {[0, 1, 2].map(i => (
           <motion.div
             key={i}
@@ -55,7 +70,7 @@ const SendIcon = () => (
   </svg>
 )
 
-export default function ChatPanel({ messages, onSend, disabled, loading }: Props) {
+export default function ChatPanel({ messages, onSend, disabled, loading, loadingStatus }: Props) {
   const [input, setInput] = useState('')
   const [picked, setPicked] = useState<Set<string>>(new Set())
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -191,7 +206,7 @@ export default function ChatPanel({ messages, onSend, disabled, loading }: Props
               </motion.div>
             )
           })}
-          {loading && <TypingIndicator key="typing" />}
+          {loading && <TypingIndicator key="typing" status={loadingStatus} />}
         </AnimatePresence>
         <div ref={bottomRef} />
       </div>

@@ -4,6 +4,7 @@ import { loadState, saveState, createInitialState } from './stateStorage'
 import { understandAnswerNode } from './nodes/understandAnswer'
 import { routeRevisionNode } from './nodes/routeRevision'
 import { generatePreviewFlowchart } from './nodes/generatePreviewFlowchart'
+import { notifyStatus } from './notify'
 import type { GraphState, MessageType, UploadedFile, ChatMessage } from '../types/index'
 
 // Open side panel when toolbar icon is clicked
@@ -43,9 +44,11 @@ chrome.runtime.onMessage.addListener((message: MessageType, _sender, sendRespons
 async function handleMessage(message: MessageType): Promise<unknown> {
   switch (message.type) {
     case 'INIT_SESSION': {
+      notifyStatus('正在開啟 Gemini 大腦...')
       const { interviewGraph: ig } = await getOrInit()
       const state = createInitialState()
       await saveState(state)
+      notifyStatus('正在準備第一個問題...')
       const result = await ig.invoke(state) as GraphState
       const lastMsg = result.conversationHistory[result.conversationHistory.length - 1]
       if (lastMsg) notifySidePanel({ type: 'BOT_MESSAGE', payload: lastMsg })
@@ -53,6 +56,7 @@ async function handleMessage(message: MessageType): Promise<unknown> {
     }
 
     case 'FILE_UPLOAD': {
+      notifyStatus('正在開啟 Gemini 大腦...')
       const { interviewGraph: ig } = await getOrInit()
       const savedState = await loadState()
       const state: GraphState = {
@@ -60,6 +64,7 @@ async function handleMessage(message: MessageType): Promise<unknown> {
         uploadedFiles: message.payload as UploadedFile[],
       }
       await saveState(state)
+      notifyStatus('正在分析您上傳的資料...')
       const result = await ig.invoke(state) as GraphState
       const lastMsg = result.conversationHistory[result.conversationHistory.length - 1]
       if (lastMsg) notifySidePanel({ type: 'BOT_MESSAGE', payload: lastMsg })
@@ -110,10 +115,12 @@ async function handleMessage(message: MessageType): Promise<unknown> {
         ? { ...savedState, awaitingConfirmation: false }
         : savedState
 
+      notifyStatus('正在理解您的回答...')
       const update = await understandAnswerNode(stateForFlow, tm!, message.payload as string)
       const updatedState: GraphState = { ...stateForFlow, ...update }
 
       await saveState(updatedState)
+      notifyStatus('正在思考下一個問題...')
       const result = await ig.invoke(updatedState) as GraphState
       const lastMsg = result.conversationHistory[result.conversationHistory.length - 1]
 
@@ -130,6 +137,7 @@ async function handleMessage(message: MessageType): Promise<unknown> {
       if (isDone || (hasEnoughInfo && newAnswers >= 3) || reachedLimit) {
         // STAGE 1: generate quick inline flowchart for SA confirmation (don't run full output yet)
         notifySidePanel({ type: 'GENERATING_OUTPUT' })
+        notifyStatus('正在繪製主流程預覽圖...')
         const previewMermaid = await generatePreviewFlowchart(result, tm!)
         const confirmMsg: ChatMessage = {
           role: 'bot',

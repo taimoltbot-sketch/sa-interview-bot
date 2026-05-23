@@ -1,6 +1,7 @@
 import type { GraphState } from '../../types/index'
 import { GENERATE_DOCUMENT_PROMPT } from '../prompts'
 import type { TabManager } from '../tabManager'
+import { notifyStatus } from '../notify'
 
 function extractBetweenMarkers(text: string, start: string, end: string): string {
   let result = text
@@ -15,6 +16,7 @@ export async function generateDocumentNode(
   state: GraphState,
   tabManager: TabManager
 ): Promise<Partial<GraphState>> {
+  notifyStatus('正在撰寫業務流程文件...')
   const raw = await tabManager.sendToTab('output', GENERATE_DOCUMENT_PROMPT(state.consolidatedJson))
   const document = extractBetweenMarkers(raw, '===DOC_START===', '===DOC_END===')
   return { generatedDocument: document }

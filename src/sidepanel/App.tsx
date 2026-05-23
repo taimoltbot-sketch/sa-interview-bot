@@ -17,6 +17,7 @@ export default function App() {
   const [view, setView] = useState<AppView>('chat')
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [loading, setLoading] = useState(false)
+  const [loadingStatus, setLoadingStatus] = useState('')
   const [previewData, setPreviewData] = useState({ document: '', mermaid: '', systemName: '' })
   const [sessionStarted, setSessionStarted] = useState(false)
 
@@ -25,17 +26,16 @@ export default function App() {
       if (message.type === 'BOT_MESSAGE') {
         setMessages(prev => [...prev, message.payload])
         setLoading(false)
+        setLoadingStatus('')
+      } else if (message.type === 'STATUS_UPDATE') {
+        setLoadingStatus(message.payload)
       } else if (message.type === 'GENERATING_OUTPUT') {
-        setMessages(prev => [...prev, {
-          role: 'bot' as const,
-          content: '已收集足夠資訊，正在生成業務流程文件與 Mermaid 圖表，請稍候...',
-          timestamp: Date.now(),
-        }])
         setLoading(true)
       } else if (message.type === 'PREVIEW_READY') {
         setPreviewData(prev => ({ ...prev, ...message.payload }))
         setView('preview')
         setLoading(false)
+        setLoadingStatus('')
       } else if (message.type === 'ERROR') {
         setMessages(prev => [...prev, {
           role: 'bot' as const,
@@ -43,6 +43,7 @@ export default function App() {
           timestamp: Date.now(),
         }])
         setLoading(false)
+        setLoadingStatus('')
       }
     }
     chrome.runtime.onMessage.addListener(listener)
@@ -110,7 +111,7 @@ export default function App() {
         ) : view === 'chat' ? (
           <motion.div key="chat" className="chat-view" {...fadeSlide}>
             <FileUpload onUpload={handleFileUpload} disabled={loading} />
-            <ChatPanel messages={messages} onSend={handleUserSend} disabled={loading} loading={loading} />
+            <ChatPanel messages={messages} onSend={handleUserSend} disabled={loading} loading={loading} loadingStatus={loadingStatus} />
           </motion.div>
         ) : (
           <motion.div key="preview" style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }} {...fadeSlide}>
