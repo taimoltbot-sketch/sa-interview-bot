@@ -3,7 +3,10 @@ import mermaid from 'mermaid'
 import { marked } from 'marked'
 import { buildHtmlReport } from '../htmlReport'
 
-marked.setOptions({ gfm: true, breaks: true })
+// Don't enable `breaks` — converting every newline to <br> mangles malformed
+// markdown (turns `-` on its own line into a visible dash). Standard paragraph
+// break rules (blank line) are enough.
+marked.setOptions({ gfm: true })
 
 interface Props {
   document: string
