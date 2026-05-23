@@ -54,6 +54,9 @@ export default function App() {
     const listener = (message: MessageType) => {
       if (message.type === 'BOT_MESSAGE') {
         setMessages(prev => [...prev, message.payload])
+        // A bot message arriving means we're past any GENERATING_OUTPUT phase
+        // (e.g. the inline flowchart confirmation step). Unlock the input.
+        setGenerating(false)
         // Drain queue OR mark idle
         const stillBusy = drainQueue()
         if (!stillBusy) {
