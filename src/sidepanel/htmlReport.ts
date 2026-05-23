@@ -62,37 +62,104 @@ export function buildHtmlReport(document: string, mermaidText: string, systemNam
       flowchart: { useMaxWidth: true, htmlLabels: true },
       sequence: { useMaxWidth: true }
     });
-    // Zoom lightbox
+    // Zoom lightbox: viewport + draggable/zoomable canvas
     document.addEventListener('DOMContentLoaded', () => {
+      const openLightbox = (svg) => {
+        let scale = 1, panX = 0, panY = 0;
+        let dragging = false, sx = 0, sy = 0, spanX = 0, spanY = 0;
+
+        const overlay = document.createElement('div');
+        overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(15,23,42,0.92)';
+
+        const viewport = document.createElement('div');
+        viewport.style.cssText = 'position:absolute;inset:0;overflow:hidden;cursor:grab;user-select:none';
+
+        const canvas = document.createElement('div');
+        canvas.style.cssText = 'position:absolute;top:50%;left:50%;transform-origin:center center;will-change:transform;background:white;border-radius:8px;padding:12px;box-shadow:0 8px 32px rgba(0,0,0,0.4)';
+        canvas.innerHTML = svg.outerHTML;
+        const cloneSvg = canvas.querySelector('svg');
+        cloneSvg.style.cssText = 'display:block;max-width:none;max-height:none;height:auto;pointer-events:none';
+
+        const applyTransform = () => {
+          canvas.style.transform = 'translate(-50%, -50%) translate(' + panX + 'px, ' + panY + 'px) scale(' + scale + ')';
+          pct.textContent = '⟲ ' + Math.round(scale * 100) + '%';
+        };
+
+        // Toolbar
+        const tb = document.createElement('div');
+        tb.style.cssText = 'position:fixed;top:12px;right:12px;z-index:10000;display:flex;gap:6px';
+        const btnCss = 'background:white;border:none;border-radius:6px;padding:6px 12px;font-size:13px;font-weight:500;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.3);color:#334155';
+        const pct = document.createElement('button'); pct.style.cssText = btnCss; pct.title = '重設縮放';
+        const newtab = document.createElement('button'); newtab.style.cssText = btnCss; newtab.textContent = '⤢ 新分頁'; newtab.title = '在新分頁全螢幕開啟';
+        const close = document.createElement('button'); close.style.cssText = btnCss; close.textContent = '✕'; close.title = '關閉 (Esc)';
+        tb.appendChild(pct); tb.appendChild(newtab); tb.appendChild(close);
+
+        const hint = document.createElement('div');
+        hint.textContent = '拖曳：左鍵/中鍵 · 縮放：滾輪 · 關閉：Esc';
+        hint.style.cssText = 'position:fixed;bottom:12px;left:50%;transform:translateX(-50%);z-index:10000;background:rgba(255,255,255,0.9);padding:6px 14px;border-radius:999px;font-size:12px;color:#475569;pointer-events:none';
+
+        viewport.appendChild(canvas);
+        overlay.appendChild(viewport);
+        overlay.appendChild(tb);
+        overlay.appendChild(hint);
+        document.body.appendChild(overlay);
+
+        // Fit to viewport
+        requestAnimationFrame(() => {
+          const r = cloneSvg.getBoundingClientRect();
+          if (r.width && r.height) {
+            scale = Math.min(viewport.clientWidth / r.width, viewport.clientHeight / r.height) * 0.95;
+          }
+          applyTransform();
+        });
+
+        const onWheel = (e) => {
+          e.preventDefault();
+          scale = Math.min(10, Math.max(0.1, scale - e.deltaY * 0.001));
+          applyTransform();
+        };
+        const onDown = (e) => {
+          if (e.button !== 0 && e.button !== 1) return;
+          e.preventDefault();
+          dragging = true; sx = e.clientX; sy = e.clientY; spanX = panX; spanY = panY;
+          viewport.style.cursor = 'grabbing';
+        };
+        const onMove = (e) => {
+          if (!dragging) return;
+          panX = spanX + (e.clientX - sx); panY = spanY + (e.clientY - sy);
+          applyTransform();
+        };
+        const onUp = () => { dragging = false; viewport.style.cursor = 'grab'; };
+        const onKey = (e) => { if (e.key === 'Escape') cleanup(); };
+
+        viewport.addEventListener('wheel', onWheel, { passive: false });
+        viewport.addEventListener('mousedown', onDown);
+        viewport.addEventListener('mousemove', onMove);
+        viewport.addEventListener('mouseup', onUp);
+        viewport.addEventListener('mouseleave', onUp);
+        viewport.addEventListener('auxclick', e => e.preventDefault());
+        document.addEventListener('keydown', onKey);
+
+        const cleanup = () => {
+          document.removeEventListener('keydown', onKey);
+          overlay.remove();
+        };
+        close.addEventListener('click', cleanup);
+        pct.addEventListener('click', () => { scale = 1; panX = 0; panY = 0; applyTransform(); });
+        newtab.addEventListener('click', () => {
+          const html = '<!doctype html><html><head><meta charset="utf-8"><title>流程圖</title>' +
+            '<style>html,body{margin:0;height:100%;background:#fafafa;display:flex;align-items:center;justify-content:center}svg{max-width:100vw;max-height:100vh;height:auto;width:auto}</style>' +
+            '</head><body>' + svg.outerHTML + '</body></html>';
+          const url = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
+          window.open(url, '_blank');
+        });
+      };
+
       setTimeout(() => {
         document.querySelectorAll('.mermaid svg').forEach(svg => {
           svg.style.cursor = 'zoom-in';
-          svg.title = '點擊放大 · 滾輪縮放';
-          svg.addEventListener('click', () => {
-            let scale = 1;
-            const overlay = document.createElement('div');
-            overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.75);display:flex;align-items:flex-start;justify-content:center;padding:48px 16px 16px;overflow:auto';
-            const close = document.createElement('button');
-            close.textContent = '✕';
-            close.style.cssText = 'position:fixed;top:12px;right:16px;z-index:10000;background:white;border:none;border-radius:50%;width:32px;height:32px;font-size:16px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.3)';
-            const inner = document.createElement('div');
-            inner.style.cssText = 'background:white;border-radius:12px;padding:24px;overflow:auto;max-width:95vw';
-            const wrapper = document.createElement('div');
-            wrapper.style.cssText = 'transform-origin:center top;transition:transform .1s ease';
-            wrapper.innerHTML = svg.outerHTML;
-            wrapper.querySelector('svg').style.cssText = 'max-width:none;height:auto';
-            inner.appendChild(wrapper);
-            overlay.appendChild(close);
-            overlay.appendChild(inner);
-            overlay.addEventListener('wheel', e => {
-              e.preventDefault();
-              scale = Math.min(5, Math.max(0.3, scale - e.deltaY * 0.001));
-              wrapper.style.transform = 'scale(' + scale + ')';
-            }, { passive: false });
-            close.addEventListener('click', () => overlay.remove());
-            overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
-            document.body.appendChild(overlay);
-          });
+          svg.setAttribute('title', '點擊放大');
+          svg.addEventListener('click', () => openLightbox(svg));
         });
       }, 1500); // wait for mermaid SVG render
     });

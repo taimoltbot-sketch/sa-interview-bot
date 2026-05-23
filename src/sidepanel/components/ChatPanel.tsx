@@ -1,31 +1,8 @@
 import { useState, useRef, useEffect, useMemo } from 'react'
-import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import mermaid from 'mermaid'
+import { MermaidZoom } from './MermaidZoom'
 import type { ChatMessage } from '../../types/index'
-
-function MermaidZoomOverlay({ svgHtml, onClose }: { svgHtml: string; onClose: () => void }) {
-  const [scale, setScale] = useState(1)
-  return createPortal(
-    <div className="mermaid-zoom-overlay" onClick={onClose}>
-      <button className="mermaid-zoom-close" onClick={onClose}>✕</button>
-      <div
-        className="mermaid-zoom-inner"
-        onClick={e => e.stopPropagation()}
-        onWheel={e => {
-          e.preventDefault()
-          setScale(s => Math.min(5, Math.max(0.3, s - e.deltaY * 0.001)))
-        }}
-      >
-        <div
-          style={{ transform: `scale(${scale})`, transformOrigin: 'center top', transition: 'transform 0.1s ease' }}
-          dangerouslySetInnerHTML={{ __html: svgHtml }}
-        />
-      </div>
-    </div>,
-    document.body
-  )
-}
 
 function MermaidInline({ code }: { code: string }) {
   const ref = useRef<HTMLDivElement>(null)
@@ -46,7 +23,7 @@ function MermaidInline({ code }: { code: string }) {
   return (
     <>
       <div ref={ref} className="mermaid-inline mermaid-zoomable" onClick={handleClick} title="點擊放大" />
-      {zoomedSvg && <MermaidZoomOverlay svgHtml={zoomedSvg} onClose={() => setZoomedSvg(null)} />}
+      {zoomedSvg && <MermaidZoom svgHtml={zoomedSvg} onClose={() => setZoomedSvg(null)} />}
     </>
   )
 }
