@@ -31,6 +31,7 @@ export function createInitialState(): GraphState {
     businessRules: '',
     consolidatedJson: '',
     generatedDocument: '',
+    generatedHtmlContent: '',
     generatedMermaid: '',
     conversationHistory: [],
     pendingQuestion: '',
@@ -46,5 +47,6 @@ export function createInitialState(): GraphState {
     revisionTarget: '',
     answerCountAtLastOutput: 0,
     awaitingConfirmation: false,
+    awaitingDiagramConfirmation: false,
   }
 }

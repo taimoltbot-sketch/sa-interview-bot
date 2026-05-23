@@ -13,6 +13,7 @@ interface Props {
   document: string
   mermaidText: string
   systemName: string
+  htmlContent?: string
   onRequestRevision: (request: string) => void
   onContinueDiscussion: () => void
 }
@@ -26,7 +27,7 @@ function extractMermaidBlocks(text: string): string[] {
   )
 }
 
-export default function Preview({ document, mermaidText, systemName, onRequestRevision, onContinueDiscussion }: Props) {
+export default function Preview({ document, mermaidText, systemName, htmlContent, onRequestRevision, onContinueDiscussion }: Props) {
   const mermaidRef = useRef<HTMLDivElement>(null)
   const [zoomedSvg, setZoomedSvg] = useState<string | null>(null)
 
@@ -72,7 +73,7 @@ export default function Preview({ document, mermaidText, systemName, onRequestRe
           <button
             className="download-btn-primary"
             onClick={() => downloadFile(
-              buildHtmlReport(document, mermaidText, safeName),
+              buildHtmlReport(document, mermaidText, safeName, htmlContent),
               `業務流程報告_${safeName}_${dateStr}.html`,
               'text/html'
             )}

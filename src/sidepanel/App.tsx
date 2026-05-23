@@ -20,7 +20,7 @@ export default function App() {
   const [loadingStatus, setLoadingStatus] = useState('')
   const [queue, setQueue] = useState<string[]>([])
   const [generating, setGenerating] = useState(false)
-  const [previewData, setPreviewData] = useState({ document: '', mermaid: '', systemName: '' })
+  const [previewData, setPreviewData] = useState({ document: '', mermaid: '', systemName: '', htmlContent: '' })
   const [sessionStarted, setSessionStarted] = useState(false)
 
   // Refs mirror state so handleUserSend can check current values synchronously
@@ -192,6 +192,7 @@ export default function App() {
               document={previewData.document}
               mermaidText={previewData.mermaid}
               systemName={previewData.systemName}
+              htmlContent={previewData.htmlContent}
               onRequestRevision={handleRevision}
               onContinueDiscussion={handleContinueDiscussion}
             />

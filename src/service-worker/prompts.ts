@@ -396,6 +396,61 @@ ${consolidatedJson}
 （你的完整 markdown 在這裡）
 ===DOC_END===`;
 
+export const GENERATE_HTML_REPORT_PROMPT = (document: string) => `將以下業務流程 markdown 文件轉換成乾淨、語意正確的 HTML 片段（**只輸出 body 內容，不要包 \`<html>\`/\`<head>\`/\`<body>\` 標籤**）：
+
+${document}
+
+────────────────────────────────────────
+**🔴 為什麼需要你做這件事**
+原本是用 \`marked.js\` 直接把 markdown 轉成 HTML，但 LLM 偶爾會在 list 之間留下孤立的 \`- \` 行，marked.js 會解析成 \`<p>- </p>\`，破壞排版。請你直接讀懂結構，產出**乾淨的 \`<ul>\` / \`<ol>\` / \`<li>\` / \`<h2>\` / \`<p>\`** 等語意 HTML。
+
+**🔴 Tailwind class 規則（必須照寫，整份報告會用 Tailwind CDN 渲染）**
+
+| 元素 | class |
+|------|-------|
+| 第一個 \`<h1>\` | \`text-3xl font-bold mt-0 mb-4 pb-2 border-b-2 border-slate-200 text-slate-900\` |
+| 其他 \`<h1>\` | \`text-3xl font-bold mt-8 mb-4 pb-2 border-b-2 border-slate-200 text-slate-900\` |
+| \`<h2>\` | \`text-2xl font-semibold mt-7 mb-3 text-indigo-600\` |
+| \`<h3>\` | \`text-lg font-semibold mt-5 mb-2 text-slate-900\` |
+| \`<h4>\` | \`text-base font-semibold mt-4 mb-2 text-slate-600\` |
+| \`<p>\` | \`my-3 text-slate-800 leading-relaxed\` |
+| \`<ul>\` | \`pl-6 my-3 list-disc space-y-1.5\` |
+| \`<ol>\` | \`pl-6 my-3 list-decimal space-y-1.5\` |
+| \`<li>\` | \`text-slate-800 leading-relaxed\` |
+| \`<strong>\` | \`font-semibold text-slate-900\` |
+| \`<code>\` | \`bg-slate-100 px-1.5 py-0.5 rounded text-sm font-mono text-indigo-600\` |
+| \`<table>\` | \`w-full border-collapse my-4 text-sm\` |
+| \`<thead>\` | （無 class） |
+| \`<th>\` | \`bg-slate-50 px-3 py-2 border border-slate-200 text-left font-semibold text-slate-700\` |
+| \`<td>\` | \`px-3 py-2 border border-slate-200 align-top\` |
+| \`<blockquote>\` | \`border-l-4 border-indigo-600 pl-4 pr-2 py-2 my-3 text-slate-600 bg-slate-50\` |
+| \`<hr>\` | \`my-6 border-slate-200\` |
+
+**🔴 嚴禁**
+1. 出現任何孤立的 \`-\` 或 \`*\` 字元當段落內容（一律包成 \`<li>\` 在 \`<ul>\` 內）
+2. 用 \`<p>**xxx**：</p>\` 模擬 list（請用 \`<li>\`）
+3. 嵌套錯誤（\`<li>\` 內若還要列舉，請用嵌套 \`<ul class="pl-5 mt-1 list-circle">\`）
+4. 跳階層（h1 → h3）
+5. 包 \`<html>\`/\`<head>\`/\`<body>\`/\`<style>\`/\`<script>\` — 只輸出內容本身
+6. 套用 markdown 殘留語法（不要 \`**xxx**\` 或 \`# xxx\`）
+
+**🔴 內容保真**
+- 不要刪減原 markdown 任何一句話
+- 不要重新詮釋語意，只做格式轉換
+- 數字編號（1./2./3.）一律用 \`<ol>\` 維持順序
+
+**重要格式規則**：請把整份 HTML 放在 ===HTML_START=== 與 ===HTML_END=== 兩行之間，標記之外不要任何說明文字、不要 \`\`\`html 區塊標記。
+
+===HTML_START===
+<h1 class="text-3xl font-bold mt-0 mb-4 pb-2 border-b-2 border-slate-200 text-slate-900">系統概述</h1>
+<p class="my-3 text-slate-800 leading-relaxed">（內容）</p>
+<h2 class="text-2xl font-semibold mt-7 mb-3 text-indigo-600">使用者角色</h2>
+<ul class="pl-6 my-3 list-disc space-y-1.5">
+  <li class="text-slate-800 leading-relaxed"><strong class="font-semibold text-slate-900">角色名</strong>：職責描述</li>
+</ul>
+（完整 HTML…）
+===HTML_END===`;
+
 export const GENERATE_MERMAID_PROMPT = (document: string) => `根據以下業務流程文件：
 
 ${document}

@@ -31,6 +31,35 @@ function notifySidePanel(message: MessageType) {
   chrome.runtime.sendMessage(message).catch(() => {})
 }
 
+// Split GENERATE_MERMAID_PROMPT output into individual {title, code} diagrams.
+// Mirrors htmlReport.ts:extractDiagrams so SA's chat review and the downloaded
+// report show the same set.
+function parseDiagrams(mermaidText: string): Array<{ title: string; code: string }> {
+  if (!mermaidText) return []
+  const out: Array<{ title: string; code: string }> = []
+  const sections = mermaidText.split(/(?=^##\s+)/m).filter(s => s.trim())
+  for (const section of sections) {
+    const titleMatch = section.match(/^##\s+(.+)/m)
+    const codeMatch = section.match(/```mermaid\n([\s\S]*?)```/)
+    if (codeMatch) {
+      out.push({
+        title: titleMatch ? titleMatch[1].trim() : '流程圖',
+        code: codeMatch[1].trim(),
+      })
+    }
+  }
+  if (out.length === 0) {
+    const fences = mermaidText.match(/```mermaid\n([\s\S]*?)```/g) ?? []
+    fences.forEach((f, i) => {
+      out.push({
+        title: `圖 ${i + 1}`,
+        code: f.replace(/```mermaid\n/, '').replace(/```$/, '').trim(),
+      })
+    })
+  }
+  return out
+}
+
 chrome.runtime.onMessage.addListener((message: MessageType, _sender, sendResponse) => {
   handleMessage(message)
     .then(sendResponse)
@@ -89,7 +118,7 @@ async function handleMessage(message: MessageType): Promise<unknown> {
           : await ig.invoke(routedState) as GraphState
         notifySidePanel({
           type: 'PREVIEW_READY',
-          payload: { document: result.generatedDocument, mermaid: result.generatedMermaid },
+          payload: { document: result.generatedDocument, mermaid: result.generatedMermaid, systemName: result.systemName, htmlContent: result.generatedHtmlContent },
         })
         return { ok: true }
       }
@@ -101,18 +130,57 @@ async function handleMessage(message: MessageType): Promise<unknown> {
         await saveState(outputState)
         const outputResult = await og.invoke(outputState) as GraphState
         const totalAnswers = outputResult.conversationHistory.filter(m => m.role === 'user').length
-        const finalState: GraphState = { ...outputResult, answerCountAtLastOutput: totalAnswers, awaitingConfirmation: false }
+
+        const diagrams = parseDiagrams(outputResult.generatedMermaid)
+
+        // No diagrams parsed → skip review, go straight to preview screen
+        if (diagrams.length === 0) {
+          const finalState: GraphState = { ...outputResult, answerCountAtLastOutput: totalAnswers, awaitingConfirmation: false, awaitingDiagramConfirmation: false }
+          await saveState(finalState)
+          notifySidePanel({
+            type: 'PREVIEW_READY',
+            payload: { document: outputResult.generatedDocument, mermaid: outputResult.generatedMermaid, systemName: outputResult.systemName, htmlContent: outputResult.generatedHtmlContent },
+          })
+          return { ok: true }
+        }
+
+        // Show all diagrams in chat for review; only emit PREVIEW_READY after SA confirms
+        const reviewMsg: ChatMessage = {
+          role: 'bot',
+          content: `我已產出 ${diagrams.length} 張流程圖，請逐一檢查（點圖可放大、拖曳、縮放）。確認無誤後點下方按鈕產出完整報告：`,
+          timestamp: Date.now(),
+          diagrams,
+          actions: [
+            { label: '✓ 全部正確，產出完整報告', value: '__CONFIRM_DIAGRAMS__' },
+            { label: '需要修改', value: '我覺得某些流程圖需要調整，請繼續追問細節' },
+          ],
+        }
+        const reviewState: GraphState = {
+          ...outputResult,
+          answerCountAtLastOutput: totalAnswers,
+          awaitingConfirmation: false,
+          awaitingDiagramConfirmation: true,
+          conversationHistory: [...outputResult.conversationHistory, reviewMsg],
+        }
+        await saveState(reviewState)
+        notifySidePanel({ type: 'BOT_MESSAGE', payload: reviewMsg })
+        return { ok: true }
+      }
+
+      // Special: user confirmed all diagrams → emit PREVIEW_READY now
+      if (savedState.awaitingDiagramConfirmation && message.payload === '__CONFIRM_DIAGRAMS__') {
+        const finalState: GraphState = { ...savedState, awaitingDiagramConfirmation: false }
         await saveState(finalState)
         notifySidePanel({
           type: 'PREVIEW_READY',
-          payload: { document: outputResult.generatedDocument, mermaid: outputResult.generatedMermaid },
+          payload: { document: savedState.generatedDocument, mermaid: savedState.generatedMermaid, systemName: savedState.systemName, htmlContent: savedState.generatedHtmlContent },
         })
         return { ok: true }
       }
 
       // If user typed a normal reply while awaiting confirmation → treat as revision request, continue interview
-      const stateForFlow: GraphState = savedState.awaitingConfirmation
-        ? { ...savedState, awaitingConfirmation: false }
+      const stateForFlow: GraphState = (savedState.awaitingConfirmation || savedState.awaitingDiagramConfirmation)
+        ? { ...savedState, awaitingConfirmation: false, awaitingDiagramConfirmation: false }
         : savedState
 
       notifyStatus('正在理解您的回答...')

@@ -170,6 +170,16 @@ export default function ChatPanel({ messages, onSend, disabled, loading, loading
                     <MermaidInline code={msg.mermaidPreview} />
                   </div>
                 )}
+                {msg.diagrams && msg.diagrams.length > 0 && (
+                  <div className="diagram-review-list">
+                    {msg.diagrams.map((d, di) => (
+                      <div key={di} className="diagram-review-card">
+                        <div className="diagram-review-title">圖 {di + 1} ／ {msg.diagrams!.length} · {d.title}</div>
+                        <MermaidInline code={d.code} />
+                      </div>
+                    ))}
+                  </div>
+                )}
                 {isLastBot && !disabled && msg.actions && msg.actions.length > 0 && (
                   <div className="message-actions">
                     {msg.actions.map((a, k) => (

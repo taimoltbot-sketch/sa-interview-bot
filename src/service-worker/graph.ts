@@ -7,6 +7,7 @@ import { decideNextQuestionNode } from './nodes/decideNextQuestion'
 import { askQuestionNode } from './nodes/askQuestion'
 import { consolidateInfoNode } from './nodes/consolidateInfo'
 import { generateDocumentNode } from './nodes/generateDocument'
+import { generateHtmlContentNode } from './nodes/generateHtmlContent'
 import { generateMermaidNode } from './nodes/generateMermaid'
 
 const GraphStateAnnotation = Annotation.Root({
@@ -24,6 +25,7 @@ const GraphStateAnnotation = Annotation.Root({
   businessRules: Annotation<string>({ reducer: (_a, b) => b, default: () => '' }),
   consolidatedJson: Annotation<string>({ reducer: (_a, b) => b, default: () => '' }),
   generatedDocument: Annotation<string>({ reducer: (_a, b) => b, default: () => '' }),
+  generatedHtmlContent: Annotation<string>({ reducer: (_a, b) => b, default: () => '' }),
   generatedMermaid: Annotation<string>({ reducer: (_a, b) => b, default: () => '' }),
   conversationHistory: Annotation<GraphState['conversationHistory']>({ reducer: (_a, b) => b, default: () => [] }),
   pendingQuestion: Annotation<string>({ reducer: (_a, b) => b, default: () => '' }),
@@ -36,6 +38,7 @@ const GraphStateAnnotation = Annotation.Root({
   revisionTarget: Annotation<string>({ reducer: (_a, b) => b, default: () => '' }),
   answerCountAtLastOutput: Annotation<number>({ reducer: (_a, b) => b, default: () => 0 }),
   awaitingConfirmation: Annotation<boolean>({ reducer: (_a, b) => b, default: () => false }),
+  awaitingDiagramConfirmation: Annotation<boolean>({ reducer: (_a, b) => b, default: () => false }),
 })
 
 // Graph 1: Interview flow
@@ -78,6 +81,11 @@ export function buildOutputGraph(tabManager: TabManager) {
       await saveState({ ...state, ...update } as GraphState)
       return update
     })
+    .addNode('generate_html', async (state) => {
+      const update = await generateHtmlContentNode(state as GraphState, tabManager)
+      await saveState({ ...state, ...update } as GraphState)
+      return update
+    })
     .addNode('generate_mermaid', async (state) => {
       const update = await generateMermaidNode(state as GraphState, tabManager)
       await saveState({ ...state, ...update } as GraphState)
@@ -85,7 +93,8 @@ export function buildOutputGraph(tabManager: TabManager) {
     })
     .addEdge(START, 'consolidate_info')
     .addEdge('consolidate_info', 'generate_document')
-    .addEdge('generate_document', 'generate_mermaid')
+    .addEdge('generate_document', 'generate_html')
+    .addEdge('generate_html', 'generate_mermaid')
     .addEdge('generate_mermaid', END)
     .compile()
 }

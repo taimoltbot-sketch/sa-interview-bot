@@ -395,6 +395,31 @@ body {
 
 .suggestions-submit:hover { filter: brightness(1.08); }
 
+/* ── Diagram review list (per-chart confirmation in chat) ── */
+.diagram-review-list {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.diagram-review-card {
+  background: white;
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  padding: 12px;
+  overflow-x: auto;
+}
+
+.diagram-review-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ai-accent);
+  margin-bottom: 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-light);
+}
+
 /* ── Inline Mermaid in chat ── */
 .mermaid-preview-card {
   margin-top: 10px;

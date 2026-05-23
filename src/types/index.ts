@@ -37,6 +37,7 @@ export interface GraphState {
   businessRules: string
   consolidatedJson: string
   generatedDocument: string
+  generatedHtmlContent: string
   generatedMermaid: string
   conversationHistory: ChatMessage[]
   pendingQuestion: string
@@ -46,6 +47,7 @@ export interface GraphState {
   revisionTarget: string
   answerCountAtLastOutput: number
   awaitingConfirmation: boolean
+  awaitingDiagramConfirmation: boolean
 }
 
 export interface FlowReadiness {
@@ -63,6 +65,7 @@ export interface ChatMessage {
   suggestions?: string[]
   multiSelect?: boolean
   mermaidPreview?: string
+  diagrams?: Array<{ title: string; code: string }>
   actions?: Array<{ label: string; value: string }>
   queued?: boolean
 }
@@ -75,7 +78,7 @@ export type MessageType =
   | { type: 'CONTINUE_DISCUSSION' }
   | { type: 'BOT_MESSAGE'; payload: ChatMessage }
   | { type: 'STATE_UPDATE'; payload: Partial<GraphState> }
-  | { type: 'PREVIEW_READY'; payload: { document: string; mermaid: string; systemName?: string } }
+  | { type: 'PREVIEW_READY'; payload: { document: string; mermaid: string; systemName?: string; htmlContent?: string } }
   | { type: 'GENERATING_OUTPUT' }
   | { type: 'STATUS_UPDATE'; payload: string }
   | { type: 'ERROR'; payload: string }

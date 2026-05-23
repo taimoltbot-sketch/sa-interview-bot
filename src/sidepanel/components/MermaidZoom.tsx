@@ -57,9 +57,17 @@ export function MermaidZoom({ svgHtml, onClose }: Props) {
 
   const stopDrag = useCallback(() => setIsDragging(false), [])
 
-  const onWheel = useCallback((e: React.WheelEvent) => {
-    e.preventDefault()
-    setScale(s => Math.min(10, Math.max(0.1, s - e.deltaY * 0.001)))
+  // React adds wheel listeners as passive in some browsers; preventDefault then no-ops
+  // and the page scrolls behind the overlay. Attach manually with passive:false.
+  useEffect(() => {
+    const vp = viewportRef.current
+    if (!vp) return
+    const handler = (e: WheelEvent) => {
+      e.preventDefault()
+      setScale(s => Math.min(10, Math.max(0.1, s - e.deltaY * 0.001)))
+    }
+    vp.addEventListener('wheel', handler, { passive: false })
+    return () => vp.removeEventListener('wheel', handler)
   }, [])
 
   const reset = () => { setScale(1); setPan({ x: 0, y: 0 }) }
@@ -92,7 +100,6 @@ export function MermaidZoom({ svgHtml, onClose }: Props) {
         onMouseMove={onMove}
         onMouseUp={stopDrag}
         onMouseLeave={stopDrag}
-        onWheel={onWheel}
         onAuxClick={(e) => e.preventDefault()}
       >
         <div

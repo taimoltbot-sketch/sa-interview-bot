@@ -31,9 +31,11 @@ function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
 
-export function buildHtmlReport(document: string, mermaidText: string, systemName: string): string {
+export function buildHtmlReport(document: string, mermaidText: string, systemName: string, htmlContent?: string): string {
   const date = new Date().toISOString().split('T')[0]
-  const docHtml = marked(document) as string
+  // Prefer Gemini-generated HTML (avoids marked.js choking on orphan `-` lines).
+  // Fall back to marked() for legacy sessions where htmlContent wasn't generated.
+  const docHtml = htmlContent && htmlContent.length > 50 ? htmlContent : (marked(document) as string)
   const diagrams = extractDiagrams(mermaidText)
 
   const diagramsHtml = diagrams.map((d, i) => `
