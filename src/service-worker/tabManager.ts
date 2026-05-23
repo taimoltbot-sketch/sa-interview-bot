@@ -11,26 +11,64 @@ const isTest = (() => {
   try { return !!(import.meta as any).env?.VITEST } catch { return false }
 })()
 
-const REGISTRY_KEY = 'geminiTabRegistry'
+const STORAGE_KEY = 'geminiSessions'
+
+interface SessionEntry { tabId: number; sessionUrl: string }
+type SessionRegistry = Record<TabRole, SessionEntry>
 
 export class TabManager {
   private registry: TabRegistry = { decision: 0, understanding: 0, output: 0 }
+  private sessionUrls: Record<TabRole, string> = { decision: GEMINI_URL, understanding: GEMINI_URL, output: GEMINI_URL }
 
-  // Try to reuse existing Gemini tabs from a previous service worker lifecycle.
-  // Returns true if all tabs are still alive and responsive.
+  // Wait for Gemini to assign a session URL (URL changes from /app to /app/<id>)
+  private async captureSessionUrl(tabId: number): Promise<string> {
+    for (let i = 0; i < 60; i++) {
+      const tab = await chrome.tabs.get(tabId).catch(() => null)
+      if (tab?.url && tab.url !== GEMINI_URL && tab.url.startsWith('https://gemini.google.com/app/')) {
+        return tab.url
+      }
+      await new Promise(r => setTimeout(r, 500))
+    }
+    return GEMINI_URL // fallback if no session URL within 30s
+  }
+
+  private async saveSessions(): Promise<void> {
+    const sessions: SessionRegistry = {
+      decision:     { tabId: this.registry.decision,     sessionUrl: this.sessionUrls.decision },
+      understanding:{ tabId: this.registry.understanding, sessionUrl: this.sessionUrls.understanding },
+      output:       { tabId: this.registry.output,       sessionUrl: this.sessionUrls.output },
+    }
+    await chrome.storage.session.set({ [STORAGE_KEY]: sessions })
+  }
+
+  // Restore from previous lifecycle: reuse live tabs OR reopen session URLs.
+  // Returns true when all three brains are ready (no init prompts needed).
   async tryRestore(): Promise<boolean> {
     if (isTest) return false
-    const stored = await chrome.storage.session.get(REGISTRY_KEY)
-    const saved = stored[REGISTRY_KEY] as TabRegistry | undefined
-    if (!saved) return false
+    const stored = await chrome.storage.session.get(STORAGE_KEY)
+    const sessions = stored[STORAGE_KEY] as SessionRegistry | undefined
+    if (!sessions) return false
 
-    // Verify every tab still exists and is on Gemini
-    for (const tabId of Object.values(saved)) {
-      const tab = await chrome.tabs.get(tabId).catch(() => null)
-      if (!tab || !tab.url?.includes('gemini.google.com')) return false
+    for (const role of ['decision', 'understanding', 'output'] as TabRole[]) {
+      const { tabId, sessionUrl } = sessions[role]
+      const existing = await chrome.tabs.get(tabId).catch(() => null)
+
+      if (existing?.url?.includes('gemini.google.com')) {
+        // Tab still alive — reuse it
+        this.registry[role] = tabId
+        this.sessionUrls[role] = existing.url
+      } else if (sessionUrl && sessionUrl !== GEMINI_URL) {
+        // Tab was closed — reopen the same conversation URL (context is preserved in history)
+        const tab = await chrome.tabs.create({ url: sessionUrl, pinned: true })
+        await this.waitForTabReady(tab.id!)
+        this.registry[role] = tab.id!
+        this.sessionUrls[role] = sessionUrl
+      } else {
+        return false // no session URL stored — need full init
+      }
     }
 
-    this.registry = saved
+    await this.saveSessions()
     this.attachTabRemovedListener()
     return true
   }
@@ -49,12 +87,16 @@ export class TabManager {
       output: outputTab.id!,
     }
 
-    await chrome.storage.session.set({ [REGISTRY_KEY]: this.registry })
-
     await this.sendToTab('decision', DECISION_BRAIN_INIT)
     await this.sendToTab('understanding', UNDERSTANDING_BRAIN_INIT)
     await this.sendToTab('output', OUTPUT_BRAIN_INIT)
 
+    // Capture session URLs after first prompts (Gemini creates the session at this point)
+    this.sessionUrls.decision     = await this.captureSessionUrl(decisionTab.id!)
+    this.sessionUrls.understanding = await this.captureSessionUrl(understandingTab.id!)
+    this.sessionUrls.output       = await this.captureSessionUrl(outputTab.id!)
+
+    await this.saveSessions()
     this.attachTabRemovedListener()
   }
 
@@ -162,31 +204,31 @@ export class TabManager {
   }
 
   private async reloadTab(role: TabRole): Promise<void> {
+    // Reload to the session URL — conversation history is preserved, no re-init needed
+    const sessionUrl = this.sessionUrls[role]
     const tabId = this.registry[role]
-    await chrome.tabs.reload(tabId)
+    await chrome.tabs.update(tabId, { url: sessionUrl })
     await this.waitForTabReady(tabId)
-    const initPrompts: Record<TabRole, string> = {
-      decision: DECISION_BRAIN_INIT,
-      understanding: UNDERSTANDING_BRAIN_INIT,
-      output: OUTPUT_BRAIN_INIT,
-    }
-    // Direct send (no stuck-detection loop) to restore brain context after reload
-    const response = await chrome.tabs.sendMessage(tabId, {
-      type: 'SEND_PROMPT',
-      payload: initPrompts[role],
-    }) as { success: boolean; response?: string; error?: string }
-    if (!response.success) throw new Error(`Re-init after reload failed: ${response.error}`)
   }
 
   private async reopenTab(role: TabRole): Promise<void> {
-    const tab = await chrome.tabs.create({ url: GEMINI_URL, pinned: true })
+    // Reopen session URL so conversation context survives tab close
+    const sessionUrl = this.sessionUrls[role] ?? GEMINI_URL
+    const tab = await chrome.tabs.create({ url: sessionUrl, pinned: true })
     this.registry[role] = tab.id!
     await this.waitForTabReady(tab.id!)
-    const initPrompts: Record<TabRole, string> = {
-      decision: DECISION_BRAIN_INIT,
-      understanding: UNDERSTANDING_BRAIN_INIT,
-      output: OUTPUT_BRAIN_INIT,
+    await this.saveSessions()
+
+    // Only re-init if we couldn't restore a real session (fell back to /app)
+    if (sessionUrl === GEMINI_URL) {
+      const initPrompts: Record<TabRole, string> = {
+        decision: DECISION_BRAIN_INIT,
+        understanding: UNDERSTANDING_BRAIN_INIT,
+        output: OUTPUT_BRAIN_INIT,
+      }
+      await this.sendToTab(role, initPrompts[role])
+      this.sessionUrls[role] = await this.captureSessionUrl(tab.id!)
+      await this.saveSessions()
     }
-    await this.sendToTab(role, initPrompts[role])
   }
 }
