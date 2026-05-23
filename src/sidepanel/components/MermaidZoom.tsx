@@ -11,28 +11,40 @@ export function MermaidZoom({ svgHtml, onClose }: Props) {
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [isDragging, setIsDragging] = useState(false)
   const dragStart = useRef({ x: 0, y: 0, panX: 0, panY: 0 })
+  const baseSize = useRef({ w: 0, h: 0 })
   const viewportRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLDivElement>(null)
 
-  // Fit-to-viewport on mount so user starts seeing the whole diagram, not a tiny corner
+  // On mount: measure the SVG's natural size, then fit-to-viewport
   useEffect(() => {
     const viewport = viewportRef.current
     const canvas = canvasRef.current
     if (!viewport || !canvas) return
     const svg = canvas.querySelector<SVGSVGElement>('svg')
     if (!svg) return
+    // Strip any constraints that would clamp the SVG when we resize it
     svg.style.maxWidth = 'none'
     svg.style.maxHeight = 'none'
+    svg.removeAttribute('width')
+    svg.removeAttribute('height')
     requestAnimationFrame(() => {
-      const w = svg.getBoundingClientRect().width
-      const h = svg.getBoundingClientRect().height
-      if (w === 0 || h === 0) return
-      const vw = viewport.clientWidth
-      const vh = viewport.clientHeight
-      const fit = Math.min(vw / w, vh / h) * 0.95
+      const r = svg.getBoundingClientRect()
+      if (r.width === 0 || r.height === 0) return
+      baseSize.current = { w: r.width, h: r.height }
+      const fit = Math.min(viewport.clientWidth / r.width, viewport.clientHeight / r.height) * 0.95
       setScale(fit)
     })
   }, [svgHtml])
+
+  // Apply scale by resizing the SVG itself (not CSS transform scale) so the
+  // browser re-rasterizes from vectors at the new size. CSS transform scale
+  // upsamples the rendered bitmap and produces a blurry result at >1x.
+  useEffect(() => {
+    const svg = canvasRef.current?.querySelector<SVGSVGElement>('svg')
+    if (!svg || baseSize.current.w === 0) return
+    svg.style.width = (baseSize.current.w * scale) + 'px'
+    svg.style.height = (baseSize.current.h * scale) + 'px'
+  }, [scale])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -105,7 +117,7 @@ export function MermaidZoom({ svgHtml, onClose }: Props) {
         <div
           ref={canvasRef}
           className="mermaid-zoom-canvas"
-          style={{ transform: `translate(-50%, -50%) translate(${pan.x}px, ${pan.y}px) scale(${scale})` }}
+          style={{ transform: `translate(-50%, -50%) translate(${pan.x}px, ${pan.y}px)` }}
           dangerouslySetInnerHTML={{ __html: svgHtml }}
         />
       </div>

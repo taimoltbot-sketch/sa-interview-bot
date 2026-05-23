@@ -68,6 +68,7 @@ export function buildHtmlReport(document: string, mermaidText: string, systemNam
     document.addEventListener('DOMContentLoaded', () => {
       const openLightbox = (svg) => {
         let scale = 1, panX = 0, panY = 0;
+        let baseW = 0, baseH = 0;
         let dragging = false, sx = 0, sy = 0, spanX = 0, spanY = 0;
 
         const overlay = document.createElement('div');
@@ -80,10 +81,21 @@ export function buildHtmlReport(document: string, mermaidText: string, systemNam
         canvas.style.cssText = 'position:absolute;top:50%;left:50%;transform-origin:center center;will-change:transform;background:white;border-radius:8px;padding:12px;box-shadow:0 8px 32px rgba(0,0,0,0.4)';
         canvas.innerHTML = svg.outerHTML;
         const cloneSvg = canvas.querySelector('svg');
-        cloneSvg.style.cssText = 'display:block;max-width:none;max-height:none;height:auto;pointer-events:none';
+        // Strip width/height attrs and max-* so style.width/height drives the size.
+        cloneSvg.removeAttribute('width');
+        cloneSvg.removeAttribute('height');
+        cloneSvg.style.cssText = 'display:block;max-width:none;max-height:none;pointer-events:none';
 
-        const applyTransform = () => {
-          canvas.style.transform = 'translate(-50%, -50%) translate(' + panX + 'px, ' + panY + 'px) scale(' + scale + ')';
+        // Pan via CSS transform (translate doesn't blur); scale by resizing the SVG
+        // itself so the browser re-rasterizes from vectors at the new size.
+        const applyPan = () => {
+          canvas.style.transform = 'translate(-50%, -50%) translate(' + panX + 'px, ' + panY + 'px)';
+        };
+        const applyScale = () => {
+          if (baseW > 0) {
+            cloneSvg.style.width = (baseW * scale) + 'px';
+            cloneSvg.style.height = (baseH * scale) + 'px';
+          }
           pct.textContent = '⟲ ' + Math.round(scale * 100) + '%';
         };
 
@@ -106,19 +118,22 @@ export function buildHtmlReport(document: string, mermaidText: string, systemNam
         overlay.appendChild(hint);
         document.body.appendChild(overlay);
 
-        // Fit to viewport
+        // Measure natural SVG size, then fit to viewport
         requestAnimationFrame(() => {
           const r = cloneSvg.getBoundingClientRect();
           if (r.width && r.height) {
-            scale = Math.min(viewport.clientWidth / r.width, viewport.clientHeight / r.height) * 0.95;
+            baseW = r.width;
+            baseH = r.height;
+            scale = Math.min(viewport.clientWidth / baseW, viewport.clientHeight / baseH) * 0.95;
           }
-          applyTransform();
+          applyPan();
+          applyScale();
         });
 
         const onWheel = (e) => {
           e.preventDefault();
           scale = Math.min(10, Math.max(0.1, scale - e.deltaY * 0.001));
-          applyTransform();
+          applyScale();
         };
         const onDown = (e) => {
           if (e.button !== 0 && e.button !== 1) return;
@@ -129,7 +144,7 @@ export function buildHtmlReport(document: string, mermaidText: string, systemNam
         const onMove = (e) => {
           if (!dragging) return;
           panX = spanX + (e.clientX - sx); panY = spanY + (e.clientY - sy);
-          applyTransform();
+          applyPan();
         };
         const onUp = () => { dragging = false; viewport.style.cursor = 'grab'; };
         const onKey = (e) => { if (e.key === 'Escape') cleanup(); };
@@ -147,7 +162,7 @@ export function buildHtmlReport(document: string, mermaidText: string, systemNam
           overlay.remove();
         };
         close.addEventListener('click', cleanup);
-        pct.addEventListener('click', () => { scale = 1; panX = 0; panY = 0; applyTransform(); });
+        pct.addEventListener('click', () => { scale = 1; panX = 0; panY = 0; applyPan(); applyScale(); });
         newtab.addEventListener('click', () => {
           const html = '<!doctype html><html><head><meta charset="utf-8"><title>流程圖</title>' +
             '<style>html,body{margin:0;height:100%;background:#fafafa;display:flex;align-items:center;justify-content:center}svg{max-width:100vw;max-height:100vh;height:auto;width:auto}</style>' +
