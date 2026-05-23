@@ -1,10 +1,17 @@
 import { useState, useEffect, useCallback } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
 import ChatPanel from './components/ChatPanel'
 import FileUpload from './components/FileUpload'
 import Preview from './components/Preview'
 import type { ChatMessage, MessageType, UploadedFile } from '../types/index'
 
 type AppView = 'chat' | 'preview'
+
+const fadeSlide = {
+  initial: { opacity: 0, y: 8 },
+  animate: { opacity: 1, y: 0, transition: { duration: 0.22, ease: 'easeOut' } },
+  exit: { opacity: 0, y: -6, transition: { duration: 0.16, ease: 'easeIn' } },
+}
 
 export default function App() {
   const [view, setView] = useState<AppView>('chat')
@@ -18,6 +25,13 @@ export default function App() {
       if (message.type === 'BOT_MESSAGE') {
         setMessages(prev => [...prev, message.payload])
         setLoading(false)
+      } else if (message.type === 'GENERATING_OUTPUT') {
+        setMessages(prev => [...prev, {
+          role: 'bot' as const,
+          content: '已收集足夠資訊，正在生成業務流程文件與 Mermaid 圖表，請稍候...',
+          timestamp: Date.now(),
+        }])
+        setLoading(true)
       } else if (message.type === 'PREVIEW_READY') {
         setPreviewData(prev => ({ ...prev, ...message.payload }))
         setView('preview')
@@ -42,17 +56,20 @@ export default function App() {
   }, [])
 
   const handleUserSend = useCallback(async (text: string) => {
+    setMessages(prev => [...prev, { role: 'user' as const, content: text, timestamp: Date.now() }])
     setLoading(true)
     await chrome.runtime.sendMessage({ type: 'USER_ANSWER', payload: text })
   }, [])
 
   const handleFileUpload = useCallback(async (files: UploadedFile[]) => {
+    setSessionStarted(true)
     setLoading(true)
     await chrome.runtime.sendMessage({ type: 'FILE_UPLOAD', payload: files })
   }, [])
 
   const handleRevision = useCallback(async (request: string) => {
     setView('chat')
+    setMessages(prev => [...prev, { role: 'user' as const, content: request, timestamp: Date.now() }])
     setLoading(true)
     await chrome.runtime.sendMessage({ type: 'USER_ANSWER', payload: request })
   }, [])
@@ -60,35 +77,46 @@ export default function App() {
   return (
     <div className="app">
       <header className="app-header">
-        <h1>SA Interview Bot</h1>
+        <div className="header-brand">
+          <div className="header-icon">✦</div>
+          <h1>SA Interview Bot</h1>
+        </div>
         {view === 'preview' && (
-          <button onClick={() => setView('chat')}>← 返回對話</button>
+          <button className="back-btn" onClick={() => setView('chat')}>← 返回</button>
         )}
       </header>
 
-      {!sessionStarted ? (
-        <div className="welcome">
-          <p>這個工具會引導你描述系統功能，並自動產出業務流程文件與 Mermaid 圖。</p>
-          <p>你可以先上傳截圖或 Excel，Bot 會幫你分析並開始引導。</p>
-          <FileUpload onUpload={handleFileUpload} disabled={loading} />
-          <button onClick={startSession} disabled={loading} className="start-btn">
-            {loading ? '初始化中...' : '開始對話'}
-          </button>
-        </div>
-      ) : view === 'chat' ? (
-        <div className="chat-view">
-          <FileUpload onUpload={handleFileUpload} disabled={loading} />
-          <ChatPanel messages={messages} onSend={handleUserSend} disabled={loading} />
-          {loading && <div className="loading">Bot 思考中...</div>}
-        </div>
-      ) : (
-        <Preview
-          document={previewData.document}
-          mermaidText={previewData.mermaid}
-          systemName={previewData.systemName}
-          onRequestRevision={handleRevision}
-        />
-      )}
+      <AnimatePresence mode="wait">
+        {!sessionStarted ? (
+          <motion.div key="welcome" className="welcome" {...fadeSlide}>
+            <div className="welcome-icon">✦</div>
+            <div className="welcome-text">
+              <h2>系統分析訪談助手</h2>
+              <p>引導你描述系統功能，自動產出業務流程文件與 Mermaid 圖表</p>
+            </div>
+            <div className="welcome-actions">
+              <FileUpload onUpload={handleFileUpload} disabled={loading} variant="welcome" />
+              <button onClick={startSession} disabled={loading} className="start-btn">
+                {loading ? '初始化中...' : '開始對話'}
+              </button>
+            </div>
+          </motion.div>
+        ) : view === 'chat' ? (
+          <motion.div key="chat" className="chat-view" {...fadeSlide}>
+            <FileUpload onUpload={handleFileUpload} disabled={loading} />
+            <ChatPanel messages={messages} onSend={handleUserSend} disabled={loading} loading={loading} />
+          </motion.div>
+        ) : (
+          <motion.div key="preview" style={{ display: 'contents' }} {...fadeSlide}>
+            <Preview
+              document={previewData.document}
+              mermaidText={previewData.mermaid}
+              systemName={previewData.systemName}
+              onRequestRevision={handleRevision}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

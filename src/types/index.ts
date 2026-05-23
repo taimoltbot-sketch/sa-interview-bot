@@ -57,4 +57,5 @@ export type MessageType =
   | { type: 'BOT_MESSAGE'; payload: ChatMessage }
   | { type: 'STATE_UPDATE'; payload: Partial<GraphState> }
   | { type: 'PREVIEW_READY'; payload: { document: string; mermaid: string; systemName?: string } }
+  | { type: 'GENERATING_OUTPUT' }
   | { type: 'ERROR'; payload: string }

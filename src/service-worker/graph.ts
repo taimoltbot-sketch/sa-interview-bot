@@ -5,13 +5,11 @@ import { saveState } from './stateStorage'
 import { analyzeFilesNode } from './nodes/analyzeFiles'
 import { identifyGapsNode } from './nodes/identifyGaps'
 import { decideNextQuestionNode } from './nodes/decideNextQuestion'
-import { routeRevisionNode } from './nodes/routeRevision'
 import { askQuestionNode } from './nodes/askQuestion'
 import { consolidateInfoNode } from './nodes/consolidateInfo'
 import { generateDocumentNode } from './nodes/generateDocument'
 import { generateMermaidNode } from './nodes/generateMermaid'
 
-// 定義狀態 annotation
 const GraphStateAnnotation = Annotation.Root({
   phase: Annotation<GraphState['phase']>({ reducer: (_a, b) => b, default: () => 'upload' }),
   systemName: Annotation<string>({ reducer: (_a, b) => b, default: () => '' }),
@@ -33,10 +31,9 @@ const GraphStateAnnotation = Annotation.Root({
   revisionTarget: Annotation<string>({ reducer: (_a, b) => b, default: () => '' }),
 })
 
-export function buildGraph(tabManager: TabManager) {
-  // Use method chaining so TypeScript can accumulate node name types
-  // for type-safe edge definitions.
-  const compiled = new StateGraph(GraphStateAnnotation)
+// Graph 1: Interview flow (START → analyze → identify → decide → ask → END)
+export function buildInterviewGraph(tabManager: TabManager) {
+  return new StateGraph(GraphStateAnnotation)
     .addNode('analyze_files', async (state) => {
       const update = await analyzeFilesNode(state as GraphState, tabManager)
       await saveState({ ...state, ...update } as GraphState)
@@ -52,9 +49,18 @@ export function buildGraph(tabManager: TabManager) {
       await saveState({ ...state, ...update } as GraphState)
       return update
     })
-    .addNode('ask_question', (state) => {
-      return askQuestionNode(state as GraphState)
-    })
+    .addNode('ask_question', (state) => askQuestionNode(state as GraphState))
+    .addEdge(START, 'analyze_files')
+    .addEdge('analyze_files', 'identify_gaps')
+    .addEdge('identify_gaps', 'decide_next_question')
+    .addEdge('decide_next_question', 'ask_question')
+    .addEdge('ask_question', END)
+    .compile()
+}
+
+// Graph 2: Output flow (START → consolidate → generate_doc → generate_mermaid → END)
+export function buildOutputGraph(tabManager: TabManager) {
+  return new StateGraph(GraphStateAnnotation)
     .addNode('consolidate_info', async (state) => {
       const update = await consolidateInfoNode(state as GraphState, tabManager)
       await saveState({ ...state, ...update } as GraphState)
@@ -70,27 +76,9 @@ export function buildGraph(tabManager: TabManager) {
       await saveState({ ...state, ...update } as GraphState)
       return update
     })
-    .addNode('route_revision', async (state) => {
-      const update = await routeRevisionNode(state as GraphState, tabManager)
-      await saveState({ ...state, ...update } as GraphState)
-      return update
-    })
-    // Main interview flow
-    .addEdge(START, 'analyze_files')
-    .addEdge('analyze_files', 'identify_gaps')
-    .addEdge('identify_gaps', 'decide_next_question')
-    .addEdge('decide_next_question', 'ask_question')
-    .addEdge('ask_question', END)
-    // Revision routing: either continue questioning or move to output
-    .addConditionalEdges('route_revision', (state) => {
-      if ((state as GraphState).phase === 'output') return 'consolidate_info'
-      return 'decide_next_question'
-    })
-    // Output generation flow
+    .addEdge(START, 'consolidate_info')
     .addEdge('consolidate_info', 'generate_document')
     .addEdge('generate_document', 'generate_mermaid')
     .addEdge('generate_mermaid', END)
     .compile()
-
-  return compiled
 }

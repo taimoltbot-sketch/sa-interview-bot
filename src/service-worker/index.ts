@@ -1,25 +1,26 @@
 import { TabManager } from './tabManager'
-import { buildGraph } from './graph'
+import { buildInterviewGraph, buildOutputGraph } from './graph'
 import { loadState, saveState, createInitialState } from './stateStorage'
 import { understandAnswerNode } from './nodes/understandAnswer'
+import { routeRevisionNode } from './nodes/routeRevision'
 import type { GraphState, MessageType, UploadedFile } from '../types/index'
 
 let tabManager: TabManager | null = null
-let compiledGraph: ReturnType<typeof buildGraph> | null = null
+let interviewGraph: ReturnType<typeof buildInterviewGraph> | null = null
+let outputGraph: ReturnType<typeof buildOutputGraph> | null = null
 
-async function getOrInitGraph() {
-  if (!tabManager || !compiledGraph) {
+async function getOrInit() {
+  if (!tabManager || !interviewGraph || !outputGraph) {
     tabManager = new TabManager()
     await tabManager.init()
-    compiledGraph = buildGraph(tabManager)
+    interviewGraph = buildInterviewGraph(tabManager)
+    outputGraph = buildOutputGraph(tabManager)
   }
-  return { tabManager, graph: compiledGraph }
+  return { tabManager, interviewGraph, outputGraph }
 }
 
 function notifySidePanel(message: MessageType) {
-  chrome.runtime.sendMessage(message).catch(() => {
-    // Side panel may not be open, ignore
-  })
+  chrome.runtime.sendMessage(message).catch(() => {})
 }
 
 chrome.runtime.onMessage.addListener((message: MessageType, _sender, sendResponse) => {
@@ -29,48 +30,51 @@ chrome.runtime.onMessage.addListener((message: MessageType, _sender, sendRespons
       sendResponse({ error: (err as Error).message })
       notifySidePanel({ type: 'ERROR', payload: (err as Error).message })
     })
-  return true // keep channel open for async
+  return true
 })
 
 async function handleMessage(message: MessageType): Promise<unknown> {
   switch (message.type) {
     case 'INIT_SESSION': {
-      const { graph } = await getOrInitGraph()
+      const { interviewGraph: ig } = await getOrInit()
       const state = createInitialState()
       await saveState(state)
-      const result = await graph.invoke(state) as GraphState
+      const result = await ig.invoke(state) as GraphState
       const lastMsg = result.conversationHistory[result.conversationHistory.length - 1]
       if (lastMsg) notifySidePanel({ type: 'BOT_MESSAGE', payload: lastMsg })
       return { ok: true }
     }
 
     case 'FILE_UPLOAD': {
-      const { graph } = await getOrInitGraph()
+      const { interviewGraph: ig } = await getOrInit()
       const savedState = await loadState()
       const state: GraphState = {
         ...(savedState ?? createInitialState()),
         uploadedFiles: message.payload as UploadedFile[],
       }
       await saveState(state)
-      const result = await graph.invoke(state) as GraphState
+      const result = await ig.invoke(state) as GraphState
       const lastMsg = result.conversationHistory[result.conversationHistory.length - 1]
       if (lastMsg) notifySidePanel({ type: 'BOT_MESSAGE', payload: lastMsg })
       return { ok: true }
     }
 
     case 'USER_ANSWER': {
-      const { tabManager: tm, graph } = await getOrInitGraph()
+      const { tabManager: tm, interviewGraph: ig, outputGraph: og } = await getOrInit()
       const savedState = await loadState()
       if (!savedState) throw new Error('No active session. Please start a new session.')
 
       if (savedState.phase === 'review' && (message.payload as string).includes('修改')) {
-        const newState: GraphState = {
-          ...savedState,
-          revisionTarget: message.payload as string,
-          phase: 'review',
-        }
+        const newState: GraphState = { ...savedState, revisionTarget: message.payload as string }
         await saveState(newState)
-        const result = await graph.invoke(newState) as GraphState
+        const routeUpdate = await routeRevisionNode(newState, tm!)
+        const routedState: GraphState = { ...newState, ...routeUpdate }
+        await saveState(routedState)
+        // Route to output or interview graph based on revision target
+        const isOutputRevision = routedState.phase === 'output'
+        const result = isOutputRevision
+          ? await og.invoke(routedState) as GraphState
+          : await ig.invoke(routedState) as GraphState
         notifySidePanel({
           type: 'PREVIEW_READY',
           payload: { document: result.generatedDocument, mermaid: result.generatedMermaid },
@@ -81,23 +85,30 @@ async function handleMessage(message: MessageType): Promise<unknown> {
       const update = await understandAnswerNode(savedState, tm!, message.payload as string)
       const updatedState: GraphState = { ...savedState, ...update }
 
-      const allFeaturesComplete =
-        updatedState.featureList.length > 0 &&
-        updatedState.currentFeatureIndex >= updatedState.featureList.length
-      const hasRequiredInfo = updatedState.businessRules && updatedState.integrations
+      await saveState(updatedState)
+      const result = await ig.invoke(updatedState) as GraphState
+      const lastMsg = result.conversationHistory[result.conversationHistory.length - 1]
 
-      if (allFeaturesComplete && hasRequiredInfo) {
-        const outputState: GraphState = { ...updatedState, phase: 'output' }
+      // Trigger output when Decision Brain says it has enough information
+      const isDone = result.phase === 'done'
+      const hasEnoughInfo =
+        (result.featureList.length > 0 || result.systemOverview) &&
+        result.businessRules &&
+        result.integrations
+      const saAnswerCount = result.conversationHistory.filter(m => m.role === 'user').length
+      const reachedLimit = saAnswerCount >= 6
+
+      if (isDone || hasEnoughInfo || reachedLimit) {
+        // Lock the UI while output is being generated (no BOT_MESSAGE — keeps textarea disabled)
+        notifySidePanel({ type: 'GENERATING_OUTPUT' })
+        const outputState: GraphState = { ...result, phase: 'output' }
         await saveState(outputState)
-        const result = await graph.invoke(outputState) as GraphState
+        const outputResult = await og.invoke(outputState) as GraphState
         notifySidePanel({
           type: 'PREVIEW_READY',
-          payload: { document: result.generatedDocument, mermaid: result.generatedMermaid },
+          payload: { document: outputResult.generatedDocument, mermaid: outputResult.generatedMermaid },
         })
       } else {
-        await saveState(updatedState)
-        const result = await graph.invoke(updatedState) as GraphState
-        const lastMsg = result.conversationHistory[result.conversationHistory.length - 1]
         if (lastMsg) notifySidePanel({ type: 'BOT_MESSAGE', payload: lastMsg })
       }
       return { ok: true }

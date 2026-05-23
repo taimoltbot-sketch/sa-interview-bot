@@ -5,6 +5,7 @@ import type { UploadedFile } from '../../types/index'
 interface Props {
   onUpload: (files: UploadedFile[]) => void
   disabled?: boolean
+  variant?: 'default' | 'welcome'
 }
 
 async function processImageFile(file: File): Promise<UploadedFile> {
@@ -41,7 +42,13 @@ async function processExcelFile(file: File): Promise<UploadedFile> {
   })
 }
 
-export default function FileUpload({ onUpload, disabled }: Props) {
+const PaperclipIcon = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+  </svg>
+)
+
+export default function FileUpload({ onUpload, disabled, variant = 'default' }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
 
   const handleFiles = async (files: FileList) => {
@@ -56,8 +63,10 @@ export default function FileUpload({ onUpload, disabled }: Props) {
     if (processed.length > 0) onUpload(processed)
   }
 
+  const isWelcome = variant === 'welcome'
+
   return (
-    <div className="file-upload">
+    <div className={isWelcome ? 'file-upload-welcome' : 'file-upload'}>
       <input
         ref={inputRef}
         type="file"
@@ -69,9 +78,10 @@ export default function FileUpload({ onUpload, disabled }: Props) {
       <button
         onClick={() => inputRef.current?.click()}
         disabled={disabled}
-        className="upload-btn"
+        className={isWelcome ? 'upload-btn upload-btn-welcome' : 'upload-btn'}
       >
-        上傳截圖 / Excel
+        <PaperclipIcon />
+        {isWelcome ? '上傳截圖 / Excel（可選）' : '附加檔案'}
       </button>
     </div>
   )

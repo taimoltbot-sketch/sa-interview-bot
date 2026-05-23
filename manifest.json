@@ -19,7 +19,8 @@
     {
       "matches": ["https://gemini.google.com/*"],
       "js": ["src/content-script/gemini.ts"],
-      "run_at": "document_idle"
+      "run_at": "document_idle",
+      "world": "MAIN"
     }
   ]
 }

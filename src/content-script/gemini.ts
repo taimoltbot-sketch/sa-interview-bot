@@ -1,29 +1,33 @@
 const INPUT_SELECTORS = [
+  'rich-textarea [contenteditable="true"]',
   '[contenteditable="true"][role="textbox"]',
   '.ql-editor[contenteditable="true"]',
-  'rich-textarea [contenteditable="true"]',
   '[data-testid="rich-textarea"]',
   'textarea.message-input',
 ]
 
 const SEND_BUTTON_SELECTORS = [
+  'button[aria-label="傳送訊息"]',  // zh-TW
   'button[aria-label="Send message"]',
-  'button[data-testid="send-button"]',
   'button.send-button',
-  'button[jsname="Qx7uuf"]',
+  'button[data-testid="send-button"]',
 ]
 
-const RESPONSE_SELECTORS = [
-  '.model-response-text',
-  '.response-text',
-  '[data-testid="response-text"]',
-  'message-content',
+// Gemini response container selectors (verified against live DOM 2025-05)
+const RESPONSE_CONTAINER_SELECTORS = [
+  'structured-content-container', // most precise — the actual text container
+  'model-response',               // wraps each Gemini turn
+  'response-container',
+  '.response-container',
+  '.markdown',                    // rendered markdown inside response
 ]
 
 function findElement(selectors: string[]): Element | null {
   for (const selector of selectors) {
-    const el = document.querySelector(selector)
-    if (el) return el
+    try {
+      const el = document.querySelector(selector)
+      if (el) return el
+    } catch { /* invalid selector — skip */ }
   }
   return null
 }
@@ -43,57 +47,150 @@ function waitForElement(selectors: string[], timeout = 30000): Promise<Element> 
     observer.observe(document.body, { childList: true, subtree: true })
     setTimeout(() => {
       observer.disconnect()
-      reject(new Error(`Element not found after ${timeout}ms. Selectors: ${selectors.join(', ')}`))
+      reject(new Error(`Element not found: ${selectors.join(', ')}`))
     }, timeout)
   })
 }
 
-function getLastResponseText(): string {
-  const responses = document.querySelectorAll(RESPONSE_SELECTORS.join(', '))
-  if (responses.length === 0) return ''
-  return responses[responses.length - 1].textContent?.trim() ?? ''
+function getAllResponseElements(): Element[] {
+  for (const selector of RESPONSE_CONTAINER_SELECTORS) {
+    try {
+      const els = document.querySelectorAll(selector)
+      if (els.length > 0) return Array.from(els)
+    } catch { /* skip */ }
+  }
+  return []
 }
 
-async function waitForNewResponse(previousResponse: string, timeout = 60000): Promise<string> {
+function getLastResponseText(): string {
+  const els = getAllResponseElements()
+  if (els.length === 0) return ''
+  return els[els.length - 1].textContent?.trim() ?? ''
+}
+
+function countResponseElements(): number {
+  return getAllResponseElements().length
+}
+
+async function waitForNewResponse(previousCount: number, previousText: string, timeout = 240000): Promise<string> {
   const start = Date.now()
   return new Promise((resolve, reject) => {
+    let settled = false
     const interval = setInterval(() => {
-      const current = getLastResponseText()
-      if (current && current !== previousResponse) {
-        setTimeout(() => {
-          clearInterval(interval)
-          resolve(getLastResponseText())
-        }, 2000)
+      const currentCount = countResponseElements()
+      const currentText = getLastResponseText()
+
+      // New element appeared OR text changed meaningfully
+      const newElement = currentCount > previousCount
+      const textChanged = currentText.length > 0 && currentText !== previousText
+
+      if ((newElement || textChanged) && !settled) {
+        settled = true
+        // Wait for Gemini to finish streaming (text stabilises)
+        let lastSeen = currentText
+        let stableFor = 0
+        const stabilityCheck = setInterval(() => {
+          const now = getLastResponseText()
+          if (now === lastSeen) {
+            stableFor += 400
+            if (stableFor >= 2000) {
+              clearInterval(stabilityCheck)
+              clearInterval(interval)
+              resolve(getLastResponseText())
+            }
+          } else {
+            lastSeen = now
+            stableFor = 0
+          }
+        }, 400)
       }
+
       if (Date.now() - start > timeout) {
         clearInterval(interval)
         reject(new Error('Timeout waiting for Gemini response'))
       }
-    }, 500)
+    }, 400)
   })
 }
 
 async function injectPrompt(text: string): Promise<void> {
-  const input = (await waitForElement(INPUT_SELECTORS)) as HTMLElement
+  const input = (await waitForElement(INPUT_SELECTORS, 15000)) as HTMLElement
   input.focus()
+  await new Promise(r => setTimeout(r, 200))
+
+  // Clear existing content
   document.execCommand('selectAll', false)
   document.execCommand('delete', false)
+  await new Promise(r => setTimeout(r, 100))
+
+  // Fire beforeinput (Quill listens to this to update its model)
+  input.dispatchEvent(new InputEvent('beforeinput', {
+    inputType: 'insertText',
+    data: text,
+    bubbles: true,
+    cancelable: true,
+  }))
+
+  // Insert the text into the DOM
   document.execCommand('insertText', false, text)
-  input.dispatchEvent(new Event('input', { bubbles: true }))
-  input.dispatchEvent(new Event('change', { bubbles: true }))
+
+  // Fire input event (tells Quill content changed → enables send button)
+  input.dispatchEvent(new InputEvent('input', {
+    inputType: 'insertText',
+    data: text,
+    bubbles: true,
+  }))
+
+  await new Promise(r => setTimeout(r, 300))
 }
 
 async function clickSend(): Promise<void> {
-  const button = (await waitForElement(SEND_BUTTON_SELECTORS)) as HTMLButtonElement
-  button.click()
+  await new Promise(r => setTimeout(r, 500))
+
+  // Primary: btn.click() — works in MAIN world (Zone.js is active → Angular detects the event)
+  for (const selector of SEND_BUTTON_SELECTORS) {
+    const btn = document.querySelector(selector) as HTMLButtonElement | null
+    if (btn) {
+      btn.click()
+      await new Promise(r => setTimeout(r, 300))
+      if (!findElement(INPUT_SELECTORS)?.textContent?.trim()) return
+    }
+  }
+
+  // Fallback: PointerEvent sequence with real coordinates
+  for (const selector of SEND_BUTTON_SELECTORS) {
+    const btn = document.querySelector(selector) as HTMLButtonElement | null
+    if (btn) {
+      const rect = btn.getBoundingClientRect()
+      const cx = rect.left + rect.width / 2
+      const cy = rect.top + rect.height / 2
+      const opts = { bubbles: true, cancelable: true, composed: true, clientX: cx, clientY: cy }
+      btn.dispatchEvent(new PointerEvent('pointerdown', { ...opts, isPrimary: true }))
+      btn.dispatchEvent(new PointerEvent('pointerup', { ...opts, isPrimary: true }))
+      btn.dispatchEvent(new MouseEvent('click', opts))
+      await new Promise(r => setTimeout(r, 300))
+      if (!findElement(INPUT_SELECTORS)?.textContent?.trim()) return
+    }
+  }
+
+  // Last resort: Enter key on rich-textarea host element
+  const host = document.querySelector('rich-textarea') as HTMLElement | null
+  if (host) {
+    const kOpts: KeyboardEventInit = { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true, cancelable: true, composed: true }
+    host.dispatchEvent(new KeyboardEvent('keydown', kOpts))
+    host.dispatchEvent(new KeyboardEvent('keyup', { ...kOpts, cancelable: false }))
+  }
 }
 
 async function sendPromptAndGetResponse(prompt: string): Promise<string> {
-  const previousResponse = getLastResponseText()
+  const previousCount = countResponseElements()
+  const previousText = getLastResponseText()
+
   await injectPrompt(prompt)
-  await new Promise(r => setTimeout(r, 300))
+  await new Promise(r => setTimeout(r, 500))
   await clickSend()
-  return await waitForNewResponse(previousResponse)
+
+  return await waitForNewResponse(previousCount, previousText)
 }
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {

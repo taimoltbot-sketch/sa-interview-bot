@@ -22,11 +22,13 @@ export class TabManager {
   private registry: TabRegistry = { decision: 0, understanding: 0, output: 0 }
 
   async init(): Promise<void> {
-    const [decisionTab, understandingTab, outputTab] = await Promise.all([
-      chrome.tabs.create({ url: GEMINI_URL, pinned: true }),
-      chrome.tabs.create({ url: GEMINI_URL, pinned: true }),
-      chrome.tabs.create({ url: GEMINI_URL, pinned: true }),
-    ])
+    // Open tabs sequentially with delays to avoid Google rate limiting / CAPTCHA
+    const decisionTab = await chrome.tabs.create({ url: GEMINI_URL, pinned: true })
+    await new Promise(r => setTimeout(r, INIT_DELAY))
+    const understandingTab = await chrome.tabs.create({ url: GEMINI_URL, pinned: true })
+    await new Promise(r => setTimeout(r, INIT_DELAY))
+    const outputTab = await chrome.tabs.create({ url: GEMINI_URL, pinned: true })
+    await new Promise(r => setTimeout(r, INIT_DELAY))
 
     this.registry = {
       decision: decisionTab.id!,
@@ -34,13 +36,10 @@ export class TabManager {
       output: outputTab.id!,
     }
 
-    await new Promise(r => setTimeout(r, INIT_DELAY))
-
-    await Promise.all([
-      this.sendToTab('decision', DECISION_BRAIN_INIT),
-      this.sendToTab('understanding', UNDERSTANDING_BRAIN_INIT),
-      this.sendToTab('output', OUTPUT_BRAIN_INIT),
-    ])
+    // Send init prompts sequentially too
+    await this.sendToTab('decision', DECISION_BRAIN_INIT)
+    await this.sendToTab('understanding', UNDERSTANDING_BRAIN_INIT)
+    await this.sendToTab('output', OUTPUT_BRAIN_INIT)
 
     chrome.tabs.onRemoved.addListener((tabId) => {
       const role = this.getRoleByTabId(tabId)
