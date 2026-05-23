@@ -11,8 +11,29 @@ const isTest = (() => {
   try { return !!(import.meta as any).env?.VITEST } catch { return false }
 })()
 
+const REGISTRY_KEY = 'geminiTabRegistry'
+
 export class TabManager {
   private registry: TabRegistry = { decision: 0, understanding: 0, output: 0 }
+
+  // Try to reuse existing Gemini tabs from a previous service worker lifecycle.
+  // Returns true if all tabs are still alive and responsive.
+  async tryRestore(): Promise<boolean> {
+    if (isTest) return false
+    const stored = await chrome.storage.session.get(REGISTRY_KEY)
+    const saved = stored[REGISTRY_KEY] as TabRegistry | undefined
+    if (!saved) return false
+
+    // Verify every tab still exists and is on Gemini
+    for (const tabId of Object.values(saved)) {
+      const tab = await chrome.tabs.get(tabId).catch(() => null)
+      if (!tab || !tab.url?.includes('gemini.google.com')) return false
+    }
+
+    this.registry = saved
+    this.attachTabRemovedListener()
+    return true
+  }
 
   async init(): Promise<void> {
     const decisionTab = await chrome.tabs.create({ url: GEMINI_URL, pinned: true })
@@ -28,10 +49,16 @@ export class TabManager {
       output: outputTab.id!,
     }
 
+    await chrome.storage.session.set({ [REGISTRY_KEY]: this.registry })
+
     await this.sendToTab('decision', DECISION_BRAIN_INIT)
     await this.sendToTab('understanding', UNDERSTANDING_BRAIN_INIT)
     await this.sendToTab('output', OUTPUT_BRAIN_INIT)
 
+    this.attachTabRemovedListener()
+  }
+
+  private attachTabRemovedListener(): void {
     chrome.tabs.onRemoved.addListener((tabId) => {
       const role = this.getRoleByTabId(tabId)
       if (role) this.reopenTab(role).catch(() => {})

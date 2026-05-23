@@ -17,7 +17,8 @@ let outputGraph: ReturnType<typeof buildOutputGraph> | null = null
 async function getOrInit() {
   if (!tabManager || !interviewGraph || !outputGraph) {
     tabManager = new TabManager()
-    await tabManager.init()
+    const restored = await tabManager.tryRestore()
+    if (!restored) await tabManager.init()
     interviewGraph = buildInterviewGraph(tabManager)
     outputGraph = buildOutputGraph(tabManager)
   }
