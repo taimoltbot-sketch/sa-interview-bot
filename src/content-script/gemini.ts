@@ -1,16 +1,17 @@
 const INPUT_SELECTORS = [
+  'rich-textarea .ql-editor[contenteditable="true"]',  // Gemini's Quill editor inside rich-textarea
+  '[aria-label="Enter a prompt for Gemini"]',           // stable aria-label
+  '.ql-editor[contenteditable="true"]',
   'rich-textarea [contenteditable="true"]',
   '[contenteditable="true"][role="textbox"]',
-  '.ql-editor[contenteditable="true"]',
-  '[data-testid="rich-textarea"]',
-  'textarea.message-input',
 ]
 
 const SEND_BUTTON_SELECTORS = [
-  'button[aria-label="傳送訊息"]',  // zh-TW
   'button[aria-label="Send message"]',
-  'button.send-button',
-  'button[data-testid="send-button"]',
+  'button[aria-label="傳送訊息"]',    // zh-TW fallback
+  'button[aria-label="傳送"]',        // shorter zh-TW variant
+  '[data-test-id="send-button-container"] button',
+  'gem-icon-button.send-button button',
 ]
 
 // Gemini response container selectors (verified against live DOM 2025-05)
@@ -193,16 +194,19 @@ async function sendPromptAndGetResponse(prompt: string): Promise<string> {
   return await waitForNewResponse(previousCount, previousText)
 }
 
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (message.type === 'SEND_PROMPT') {
-    sendPromptAndGetResponse(message.payload)
-      .then(response => sendResponse({ success: true, response }))
-      .catch(err => sendResponse({ success: false, error: err.message }))
-    return true
-  }
+// Receives messages from isolated-bridge.ts via window.postMessage (MAIN world only)
+window.addEventListener('message', async (event) => {
+  if (event.source !== window || event.data?.type !== 'GEMINI_REQUEST') return
+  const { requestId, payload } = event.data
 
-  if (message.type === 'PING') {
-    sendResponse({ alive: true })
-    return false
+  if (payload.type === 'SEND_PROMPT') {
+    try {
+      const response = await sendPromptAndGetResponse(payload.payload)
+      window.postMessage({ type: 'GEMINI_RESPONSE', requestId, payload: { success: true, response } }, '*')
+    } catch (err) {
+      window.postMessage({ type: 'GEMINI_RESPONSE', requestId, payload: { success: false, error: (err as Error).message } }, '*')
+    }
+  } else if (payload.type === 'PING') {
+    window.postMessage({ type: 'GEMINI_RESPONSE', requestId, payload: { alive: true } }, '*')
   }
 })
