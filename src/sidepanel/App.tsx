@@ -55,8 +55,8 @@ export default function App() {
     await chrome.runtime.sendMessage({ type: 'INIT_SESSION' })
   }, [])
 
-  const handleUserSend = useCallback(async (text: string) => {
-    setMessages(prev => [...prev, { role: 'user' as const, content: text, timestamp: Date.now() }])
+  const handleUserSend = useCallback(async (text: string, displayText?: string) => {
+    setMessages(prev => [...prev, { role: 'user' as const, content: displayText ?? text, timestamp: Date.now() }])
     setLoading(true)
     await chrome.runtime.sendMessage({ type: 'USER_ANSWER', payload: text })
   }, [])

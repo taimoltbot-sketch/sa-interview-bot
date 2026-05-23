@@ -38,5 +38,6 @@ export function createInitialState(): GraphState {
     pendingMultiSelect: false,
     revisionTarget: '',
     answerCountAtLastOutput: 0,
+    awaitingConfirmation: false,
   }
 }

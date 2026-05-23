@@ -1,10 +1,22 @@
 import { useState, useRef, useEffect, useMemo } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
+import mermaid from 'mermaid'
 import type { ChatMessage } from '../../types/index'
+
+function MermaidInline({ code }: { code: string }) {
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!ref.current || !code) return
+    const id = `mmd-${Math.random().toString(36).slice(2, 9)}`
+    ref.current.innerHTML = `<div class="mermaid" id="${id}">${code}</div>`
+    mermaid.run({ nodes: ref.current.querySelectorAll('.mermaid') }).catch(() => {})
+  }, [code])
+  return <div ref={ref} className="mermaid-inline" />
+}
 
 interface Props {
   messages: ChatMessage[]
-  onSend: (text: string) => void
+  onSend: (text: string, displayText?: string) => void
   disabled?: boolean
   loading?: boolean
 }
@@ -123,6 +135,25 @@ export default function ChatPanel({ messages, onSend, disabled, loading }: Props
                   </div>
                 )}
                 <div className="bubble">{msg.content}</div>
+                {msg.mermaidPreview && (
+                  <div className="mermaid-preview-card">
+                    <MermaidInline code={msg.mermaidPreview} />
+                  </div>
+                )}
+                {isLastBot && !disabled && msg.actions && msg.actions.length > 0 && (
+                  <div className="message-actions">
+                    {msg.actions.map((a, k) => (
+                      <motion.button
+                        key={k}
+                        className={`message-action-btn ${k === 0 ? 'message-action-btn-primary' : ''}`}
+                        onClick={() => onSend(a.value, a.label)}
+                        whileTap={{ scale: 0.96 }}
+                      >
+                        {a.label}
+                      </motion.button>
+                    ))}
+                  </div>
+                )}
                 {showSuggestions && (
                   <>
                     {isMulti && (

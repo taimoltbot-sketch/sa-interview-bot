@@ -31,6 +31,7 @@ const GraphStateAnnotation = Annotation.Root({
   pendingMultiSelect: Annotation<boolean>({ reducer: (_a, b) => b, default: () => false }),
   revisionTarget: Annotation<string>({ reducer: (_a, b) => b, default: () => '' }),
   answerCountAtLastOutput: Annotation<number>({ reducer: (_a, b) => b, default: () => 0 }),
+  awaitingConfirmation: Annotation<boolean>({ reducer: (_a, b) => b, default: () => false }),
 })
 
 // Graph 1: Interview flow

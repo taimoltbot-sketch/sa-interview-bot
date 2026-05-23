@@ -63,22 +63,90 @@ function getAllResponseElements(): Element[] {
   return []
 }
 
+// Walk Gemini's response DOM and reconstruct clean markdown.
+// Key trick: Mermaid blocks are rendered as SVG by Gemini, but the raw source
+// is preserved on a `data-mermaid-code` attribute — we use that directly so
+// the fence markers ```mermaid ... ``` come out right.
+function reconstructMarkdownFromDom(root: HTMLElement): string {
+  const parts: string[] = []
+  const HEADINGS: Record<string, string> = { h1: '# ', h2: '## ', h3: '### ', h4: '#### ', h5: '##### ', h6: '###### ' }
+
+  function walk(node: Node): void {
+    if (node.nodeType === Node.TEXT_NODE) {
+      const t = node.textContent ?? ''
+      if (t) parts.push(t)
+      return
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) return
+    const el = node as HTMLElement
+    const tag = el.tagName.toLowerCase()
+
+    // Skip rendered Mermaid SVG, copy/download buttons, style/script
+    if (tag === 'svg' || tag === 'style' || tag === 'script' || tag === 'noscript') return
+    if (el.classList?.contains('gv-mermaid-diagram')) return
+    if (el.classList?.contains('gv-mermaid-toggle')) return
+    if (el.classList?.contains('buttons')) return
+
+    // Mermaid code block: pull raw source from data-mermaid-code attribute
+    if (el.hasAttribute('data-mermaid-code')) {
+      const code = (el.getAttribute('data-mermaid-code') ?? '').trim()
+      parts.push('\n\n```mermaid\n' + code + '\n```\n\n')
+      return
+    }
+
+    // Non-mermaid code block (pre containing code)
+    if (tag === 'pre') {
+      const txt = el.textContent ?? ''
+      parts.push('\n```\n' + txt + '\n```\n')
+      return
+    }
+    if (tag === 'code') {
+      parts.push('`' + (el.textContent ?? '') + '`')
+      return
+    }
+
+    if (HEADINGS[tag]) {
+      parts.push('\n\n' + HEADINGS[tag])
+      for (const c of Array.from(el.childNodes)) walk(c)
+      parts.push('\n')
+      return
+    }
+
+    if (tag === 'p') {
+      parts.push('\n\n')
+      for (const c of Array.from(el.childNodes)) walk(c)
+      parts.push('\n')
+      return
+    }
+
+    if (tag === 'ul' || tag === 'ol') {
+      parts.push('\n')
+      for (const c of Array.from(el.childNodes)) walk(c)
+      parts.push('\n')
+      return
+    }
+    if (tag === 'li') {
+      parts.push('\n- ')
+      for (const c of Array.from(el.childNodes)) walk(c)
+      return
+    }
+
+    if (tag === 'br') { parts.push('\n'); return }
+    if (tag === 'strong' || tag === 'b') { parts.push('**'); for (const c of Array.from(el.childNodes)) walk(c); parts.push('**'); return }
+    if (tag === 'em' || tag === 'i') { parts.push('*'); for (const c of Array.from(el.childNodes)) walk(c); parts.push('*'); return }
+
+    // Default: recurse into children
+    for (const c of Array.from(el.childNodes)) walk(c)
+  }
+
+  walk(root)
+  return parts.join('').replace(/\n{3,}/g, '\n\n').trim()
+}
+
 function getLastResponseText(): string {
   const els = getAllResponseElements()
   if (els.length === 0) return ''
-  const el = els[els.length - 1] as HTMLElement
-  // Clone, strip rendered SVG / <style> noise (Mermaid diagrams pollute textContent),
-  // then use innerText so block elements produce real line breaks.
-  const clone = el.cloneNode(true) as HTMLElement
-  clone.querySelectorAll('svg, style, script, .mermaid-diagram-svg').forEach(n => n.remove())
-  // Re-attach to a hidden host so innerText (which respects layout) works correctly
-  const hidden = document.createElement('div')
-  hidden.style.cssText = 'position:absolute;left:-99999px;top:0;visibility:hidden;white-space:pre-wrap;'
-  hidden.appendChild(clone)
-  document.body.appendChild(hidden)
-  const text = (clone.innerText || clone.textContent || '').trim()
-  hidden.remove()
-  return text
+  return reconstructMarkdownFromDom(els[els.length - 1] as HTMLElement)
 }
 
 function countResponseElements(): number {

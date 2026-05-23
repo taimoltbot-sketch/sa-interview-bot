@@ -44,6 +44,7 @@ export interface GraphState {
   pendingMultiSelect: boolean
   revisionTarget: string
   answerCountAtLastOutput: number
+  awaitingConfirmation: boolean
 }
 
 export interface ChatMessage {
@@ -52,6 +53,8 @@ export interface ChatMessage {
   timestamp: number
   suggestions?: string[]
   multiSelect?: boolean
+  mermaidPreview?: string
+  actions?: Array<{ label: string; value: string }>
 }
 
 export type MessageType =
