@@ -308,6 +308,23 @@ body {
   border-radius: 16px 4px 16px 16px;
 }
 
+/* Queued user message — sent but waiting for bot to free up */
+.message-queued .bubble {
+  opacity: 0.6;
+  position: relative;
+}
+
+.message-queued .bubble::after {
+  content: '排隊中';
+  position: absolute;
+  bottom: -16px;
+  right: 4px;
+  font-size: 10.5px;
+  color: var(--text-muted);
+  font-weight: 500;
+  letter-spacing: 0.3px;
+}
+
 /* ── Suggestion Chips ── */
 .suggestions {
   display: flex;

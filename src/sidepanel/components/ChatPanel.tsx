@@ -20,6 +20,7 @@ interface Props {
   disabled?: boolean
   loading?: boolean
   loadingStatus?: string
+  queueCount?: number
 }
 
 function TypingIndicator({ status }: { status?: string }) {
@@ -70,7 +71,7 @@ const SendIcon = () => (
   </svg>
 )
 
-export default function ChatPanel({ messages, onSend, disabled, loading, loadingStatus }: Props) {
+export default function ChatPanel({ messages, onSend, disabled, loading, loadingStatus, queueCount = 0 }: Props) {
   const [input, setInput] = useState('')
   const [picked, setPicked] = useState<Set<string>>(new Set())
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -138,7 +139,7 @@ export default function ChatPanel({ messages, onSend, disabled, loading, loading
             return (
               <motion.div
                 key={i}
-                className={`message message-${msg.role}`}
+                className={`message message-${msg.role}${msg.queued ? ' message-queued' : ''}`}
                 initial={{ opacity: 0, y: 8, scale: 0.98 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 transition={{ duration: 0.22, ease: 'easeOut' }}
@@ -206,7 +207,7 @@ export default function ChatPanel({ messages, onSend, disabled, loading, loading
               </motion.div>
             )
           })}
-          {loading && <TypingIndicator key="typing" status={loadingStatus} />}
+          {loading && <TypingIndicator key="typing" status={loadingStatus ? `${loadingStatus}${queueCount > 0 ? ` · 後續 ${queueCount} 則排隊中` : ''}` : (queueCount > 0 ? `後續 ${queueCount} 則排隊中` : undefined)} />}
         </AnimatePresence>
         <div ref={bottomRef} />
       </div>
@@ -217,7 +218,7 @@ export default function ChatPanel({ messages, onSend, disabled, loading, loading
           value={input}
           onChange={handleInput}
           onKeyDown={handleKeyDown}
-          placeholder="輸入回答（Enter 送出，Shift+Enter 換行）"
+          placeholder={loading ? `Bot 處理中，繼續輸入會排隊（已 ${queueCount} 則）` : '輸入回答（Enter 送出，Shift+Enter 換行）'}
           disabled={disabled}
           rows={2}
         />

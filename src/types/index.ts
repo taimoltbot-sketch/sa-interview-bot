@@ -55,6 +55,7 @@ export interface ChatMessage {
   multiSelect?: boolean
   mermaidPreview?: string
   actions?: Array<{ label: string; value: string }>
+  queued?: boolean
 }
 
 export type MessageType =
