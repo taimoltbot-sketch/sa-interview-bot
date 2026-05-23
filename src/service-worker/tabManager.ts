@@ -79,7 +79,14 @@ export class TabManager {
           payload: prompt,
         }) as { success: boolean; response?: string; error?: string }
 
-        if (!response.success) throw new Error(response.error ?? 'Tab returned failure')
+        if (!response.success) {
+          // Gemini UI is stuck — reload the tab, re-init the brain, then retry
+          if (response.error === 'GEMINI_STUCK') {
+            await this.reloadTab(role)
+            continue
+          }
+          throw new Error(response.error ?? 'Tab returned failure')
+        }
         return response.response!
       } catch (err) {
         lastError = err as Error
@@ -96,10 +103,27 @@ export class TabManager {
     return null
   }
 
+  private async reloadTab(role: TabRole): Promise<void> {
+    const tabId = this.registry[role]
+    await chrome.tabs.reload(tabId)
+    await this.waitForTabReady(tabId)
+    const initPrompts: Record<TabRole, string> = {
+      decision: DECISION_BRAIN_INIT,
+      understanding: UNDERSTANDING_BRAIN_INIT,
+      output: OUTPUT_BRAIN_INIT,
+    }
+    // Direct send (no stuck-detection loop) to restore brain context after reload
+    const response = await chrome.tabs.sendMessage(tabId, {
+      type: 'SEND_PROMPT',
+      payload: initPrompts[role],
+    }) as { success: boolean; response?: string; error?: string }
+    if (!response.success) throw new Error(`Re-init after reload failed: ${response.error}`)
+  }
+
   private async reopenTab(role: TabRole): Promise<void> {
     const tab = await chrome.tabs.create({ url: GEMINI_URL, pinned: true })
     this.registry[role] = tab.id!
-    await new Promise(r => setTimeout(r, INIT_DELAY))
+    await this.waitForTabReady(tab.id!)
     const initPrompts: Record<TabRole, string> = {
       decision: DECISION_BRAIN_INIT,
       understanding: UNDERSTANDING_BRAIN_INIT,

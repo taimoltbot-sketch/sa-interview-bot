@@ -201,6 +201,11 @@ async function sendPromptAndGetResponse(prompt: string): Promise<string> {
   await new Promise(r => setTimeout(r, 500))
   await clickSend()
 
+  // If input still has text, Gemini is stuck — signal tabManager to reload and retry
+  if (findElement(INPUT_SELECTORS)?.textContent?.trim()) {
+    throw new Error('GEMINI_STUCK')
+  }
+
   return await waitForNewResponse(previousCount, previousText)
 }
 
