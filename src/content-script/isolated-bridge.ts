@@ -1,7 +1,7 @@
 // Runs in ISOLATED world — the only place chrome.runtime messaging works in MV3.
 // Bridges chrome.runtime messages to/from the MAIN world script via window.postMessage.
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (message.type !== 'SEND_PROMPT' && message.type !== 'PING') return false
+  if (message.type !== 'SEND_PROMPT' && message.type !== 'SEND_PROMPT_WITH_IMAGES' && message.type !== 'PING') return false
 
   const requestId = Math.random().toString(36).slice(2)
 

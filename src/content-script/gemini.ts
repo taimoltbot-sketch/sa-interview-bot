@@ -193,6 +193,33 @@ async function clickSend(): Promise<void> {
   }
 }
 
+// Paste an image into the Gemini editor via DataTransfer ClipboardEvent
+async function injectImage(base64: string, mimeType: string, filename: string): Promise<void> {
+  const editor = (await waitForElement(INPUT_SELECTORS, 15000)) as HTMLElement
+
+  const binary = atob(base64)
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+  const blob = new Blob([bytes], { type: mimeType })
+  const file = new File([blob], filename, { type: mimeType })
+
+  const dt = new DataTransfer()
+  dt.items.add(file)
+
+  editor.focus()
+  await new Promise(r => setTimeout(r, 300))
+
+  editor.dispatchEvent(new ClipboardEvent('paste', {
+    clipboardData: dt,
+    bubbles: true,
+    cancelable: true,
+    composed: true,
+  }))
+
+  // Wait for Gemini to render the image thumbnail
+  await new Promise(r => setTimeout(r, 1500))
+}
+
 async function sendPromptAndGetResponse(prompt: string): Promise<string> {
   const previousCount = countResponseElements()
   const previousText = getLastResponseText()
@@ -201,7 +228,30 @@ async function sendPromptAndGetResponse(prompt: string): Promise<string> {
   await new Promise(r => setTimeout(r, 500))
   await clickSend()
 
-  // If input still has text, Gemini is stuck — signal tabManager to reload and retry
+  if (findElement(INPUT_SELECTORS)?.textContent?.trim()) {
+    throw new Error('GEMINI_STUCK')
+  }
+
+  return await waitForNewResponse(previousCount, previousText)
+}
+
+async function sendPromptWithImages(
+  prompt: string,
+  images: Array<{ base64: string; mimeType: string; filename: string }>
+): Promise<string> {
+  const previousCount = countResponseElements()
+  const previousText = getLastResponseText()
+
+  // Paste all images first
+  for (const img of images) {
+    await injectImage(img.base64, img.mimeType, img.filename)
+  }
+
+  // Then inject the text prompt
+  await injectPrompt(prompt)
+  await new Promise(r => setTimeout(r, 500))
+  await clickSend()
+
   if (findElement(INPUT_SELECTORS)?.textContent?.trim()) {
     throw new Error('GEMINI_STUCK')
   }
@@ -217,6 +267,14 @@ window.addEventListener('message', async (event) => {
   if (payload.type === 'SEND_PROMPT') {
     try {
       const response = await sendPromptAndGetResponse(payload.payload)
+      window.postMessage({ type: 'GEMINI_RESPONSE', requestId, payload: { success: true, response } }, '*')
+    } catch (err) {
+      window.postMessage({ type: 'GEMINI_RESPONSE', requestId, payload: { success: false, error: (err as Error).message } }, '*')
+    }
+  } else if (payload.type === 'SEND_PROMPT_WITH_IMAGES') {
+    try {
+      const { prompt, images } = payload.payload
+      const response = await sendPromptWithImages(prompt, images)
       window.postMessage({ type: 'GEMINI_RESPONSE', requestId, payload: { success: true, response } }, '*')
     } catch (err) {
       window.postMessage({ type: 'GEMINI_RESPONSE', requestId, payload: { success: false, error: (err as Error).message } }, '*')

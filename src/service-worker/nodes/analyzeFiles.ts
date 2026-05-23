@@ -1,13 +1,6 @@
-import type { GraphState } from '../../types/index'
+import type { GraphState, UploadedFile } from '../../types/index'
 import { ANALYZE_FILES_PROMPT } from '../prompts'
 import type { TabManager } from '../tabManager'
-
-function buildFileContent(state: GraphState): string {
-  return state.uploadedFiles.map(f => {
-    if (f.type === 'image') return `[圖片：${f.name}]\n${f.content}`
-    return `[Excel：${f.name}]\n${f.content}`
-  }).join('\n\n')
-}
 
 function parseJsonResponse(raw: string): Record<string, unknown> {
   const jsonMatch = raw.match(/\{[\s\S]*\}/)
@@ -15,13 +8,33 @@ function parseJsonResponse(raw: string): Record<string, unknown> {
   return JSON.parse(jsonMatch[0])
 }
 
+function buildExcelSummary(files: UploadedFile[]): string {
+  return files
+    .filter(f => f.type === 'excel')
+    .map(f => `[Excel：${f.name}]\n${f.content}`)
+    .join('\n\n')
+}
+
 export async function analyzeFilesNode(
   state: GraphState,
   tabManager: TabManager
 ): Promise<Partial<GraphState>> {
   if (state.uploadedFiles.length === 0) return { analyzedData: {} }
-  const fileContent = buildFileContent(state)
-  const prompt = ANALYZE_FILES_PROMPT(fileContent)
-  const raw = await tabManager.sendToTab('decision', prompt)
+
+  const images = state.uploadedFiles
+    .filter(f => f.type === 'image')
+    .map(f => ({ base64: f.content, mimeType: f.mimeType, filename: f.name }))
+
+  const excelText = buildExcelSummary(state.uploadedFiles)
+  const prompt = ANALYZE_FILES_PROMPT(excelText || '（無 Excel，請從圖片中分析）')
+
+  let raw: string
+  if (images.length > 0) {
+    // Send images via real clipboard paste so Gemini can visually analyze them
+    raw = await tabManager.sendToTabWithImages('decision', prompt, images)
+  } else {
+    raw = await tabManager.sendToTab('decision', prompt)
+  }
+
   return { analyzedData: parseJsonResponse(raw) }
 }

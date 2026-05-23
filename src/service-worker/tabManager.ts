@@ -103,6 +103,37 @@ export class TabManager {
     return null
   }
 
+  async sendToTabWithImages(
+    role: TabRole,
+    prompt: string,
+    images: Array<{ base64: string; mimeType: string; filename: string }>
+  ): Promise<string> {
+    const tabId = this.registry[role]
+    let lastError: Error = new Error('Unknown error')
+
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        const response = await chrome.tabs.sendMessage(tabId, {
+          type: 'SEND_PROMPT_WITH_IMAGES',
+          payload: { prompt, images },
+        }) as { success: boolean; response?: string; error?: string }
+
+        if (!response.success) {
+          if (response.error === 'GEMINI_STUCK') {
+            await this.reloadTab(role)
+            continue
+          }
+          throw new Error(response.error ?? 'Tab returned failure')
+        }
+        return response.response!
+      } catch (err) {
+        lastError = err as Error
+        if (attempt < MAX_RETRIES) await new Promise(r => setTimeout(r, 1500 * attempt))
+      }
+    }
+    throw new Error(`Tab ${role} failed after ${MAX_RETRIES} retries: ${lastError.message}`)
+  }
+
   private async reloadTab(role: TabRole): Promise<void> {
     const tabId = this.registry[role]
     await chrome.tabs.reload(tabId)
