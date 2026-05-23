@@ -9,6 +9,7 @@ interface Props {
   mermaidText: string
   systemName: string
   onRequestRevision: (request: string) => void
+  onContinueDiscussion: () => void
 }
 
 mermaid.initialize({ startOnLoad: false, theme: 'default', securityLevel: 'loose' })
@@ -20,7 +21,7 @@ function extractMermaidBlocks(text: string): string[] {
   )
 }
 
-export default function Preview({ document, mermaidText, systemName, onRequestRevision }: Props) {
+export default function Preview({ document, mermaidText, systemName, onRequestRevision, onContinueDiscussion }: Props) {
   const mermaidRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -73,10 +74,15 @@ export default function Preview({ document, mermaidText, systemName, onRequestRe
       </section>
 
       <section className="revision">
-        <h3>需要修改？</h3>
-        <button onClick={() => onRequestRevision('請回到對話模式，我需要修改部分內容')}>
-          返回修改
-        </button>
+        <h3>還想做什麼？</h3>
+        <div className="revision-actions">
+          <button className="revision-btn" onClick={onContinueDiscussion}>
+            繼續討論下一個模組
+          </button>
+          <button className="revision-btn revision-btn-secondary" onClick={() => onRequestRevision('請回到對話模式，我需要修改部分內容')}>
+            返回修改
+          </button>
+        </div>
       </section>
     </div>
   )

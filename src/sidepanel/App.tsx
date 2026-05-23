@@ -74,6 +74,12 @@ export default function App() {
     await chrome.runtime.sendMessage({ type: 'USER_ANSWER', payload: request })
   }, [])
 
+  const handleContinueDiscussion = useCallback(async () => {
+    setView('chat')
+    setLoading(true)
+    await chrome.runtime.sendMessage({ type: 'CONTINUE_DISCUSSION' })
+  }, [])
+
   return (
     <div className="app">
       <header className="app-header">
@@ -113,6 +119,7 @@ export default function App() {
               mermaidText={previewData.mermaid}
               systemName={previewData.systemName}
               onRequestRevision={handleRevision}
+              onContinueDiscussion={handleContinueDiscussion}
             />
           </motion.div>
         )}

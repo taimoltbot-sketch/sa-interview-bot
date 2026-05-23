@@ -95,21 +95,25 @@ async function handleMessage(message: MessageType): Promise<unknown> {
       const result = await ig.invoke(updatedState) as GraphState
       const lastMsg = result.conversationHistory[result.conversationHistory.length - 1]
 
-      // Trigger output when Decision Brain says it has enough information
+      // Auto-trigger output: only count answers SINCE last output, so subsequent
+      // module discussions don't re-trigger immediately
+      const totalAnswers = result.conversationHistory.filter(m => m.role === 'user').length
+      const newAnswers = totalAnswers - (result.answerCountAtLastOutput ?? 0)
       const isDone = result.phase === 'done'
       const hasEnoughInfo =
         (result.featureList.length > 0 || result.systemOverview) &&
         result.businessRules &&
         result.integrations
-      const saAnswerCount = result.conversationHistory.filter(m => m.role === 'user').length
-      const reachedLimit = saAnswerCount >= 6
+      const reachedLimit = newAnswers >= 6
 
-      if (isDone || hasEnoughInfo || reachedLimit) {
-        // Lock the UI while output is being generated (no BOT_MESSAGE — keeps textarea disabled)
+      if (isDone || (hasEnoughInfo && newAnswers >= 3) || reachedLimit) {
         notifySidePanel({ type: 'GENERATING_OUTPUT' })
         const outputState: GraphState = { ...result, phase: 'output' }
         await saveState(outputState)
         const outputResult = await og.invoke(outputState) as GraphState
+        // Remember answer count so next module's auto-trigger only counts new answers
+        const finalState: GraphState = { ...outputResult, answerCountAtLastOutput: totalAnswers }
+        await saveState(finalState)
         notifySidePanel({
           type: 'PREVIEW_READY',
           payload: { document: outputResult.generatedDocument, mermaid: outputResult.generatedMermaid },
@@ -117,6 +121,29 @@ async function handleMessage(message: MessageType): Promise<unknown> {
       } else {
         if (lastMsg) notifySidePanel({ type: 'BOT_MESSAGE', payload: lastMsg })
       }
+      return { ok: true }
+    }
+
+    case 'CONTINUE_DISCUSSION': {
+      const savedState = await loadState()
+      if (!savedState) throw new Error('No active session')
+
+      // Keep accumulated features/system info; ask for the next module
+      const botMsg = {
+        role: 'bot' as const,
+        content: '好的！請告訴我下一個您想討論的模組或功能是什麼？',
+        timestamp: Date.now(),
+        suggestions: undefined,
+      }
+      const continued: GraphState = {
+        ...savedState,
+        phase: 'features',
+        pendingQuestion: botMsg.content,
+        pendingSuggestions: [],
+        conversationHistory: [...savedState.conversationHistory, botMsg],
+      }
+      await saveState(continued)
+      notifySidePanel({ type: 'BOT_MESSAGE', payload: botMsg })
       return { ok: true }
     }
 

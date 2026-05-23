@@ -36,5 +36,6 @@ export function createInitialState(): GraphState {
     pendingQuestion: '',
     pendingSuggestions: [],
     revisionTarget: '',
+    answerCountAtLastOutput: 0,
   }
 }

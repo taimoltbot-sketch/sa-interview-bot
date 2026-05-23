@@ -42,6 +42,7 @@ export interface GraphState {
   pendingQuestion: string
   pendingSuggestions: string[]
   revisionTarget: string
+  answerCountAtLastOutput: number
 }
 
 export interface ChatMessage {
@@ -56,6 +57,7 @@ export type MessageType =
   | { type: 'USER_ANSWER'; payload: string }
   | { type: 'FILE_UPLOAD'; payload: UploadedFile[] }
   | { type: 'REQUEST_DOWNLOAD' }
+  | { type: 'CONTINUE_DISCUSSION' }
   | { type: 'BOT_MESSAGE'; payload: ChatMessage }
   | { type: 'STATE_UPDATE'; payload: Partial<GraphState> }
   | { type: 'PREVIEW_READY'; payload: { document: string; mermaid: string; systemName?: string } }

@@ -29,6 +29,7 @@ const GraphStateAnnotation = Annotation.Root({
   pendingQuestion: Annotation<string>({ reducer: (_a, b) => b, default: () => '' }),
   pendingSuggestions: Annotation<string[]>({ reducer: (_a, b) => b, default: () => [] }),
   revisionTarget: Annotation<string>({ reducer: (_a, b) => b, default: () => '' }),
+  answerCountAtLastOutput: Annotation<number>({ reducer: (_a, b) => b, default: () => 0 }),
 })
 
 // Graph 1: Interview flow
