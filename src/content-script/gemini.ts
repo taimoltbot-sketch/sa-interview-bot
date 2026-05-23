@@ -86,6 +86,11 @@ function reconstructMarkdownFromDom(root: HTMLElement): string {
     if (el.classList?.contains('gv-mermaid-diagram')) return
     if (el.classList?.contains('gv-mermaid-toggle')) return
     if (el.classList?.contains('buttons')) return
+    // Skip screen-reader-only / visually-hidden chrome (e.g. "Gemini said" label)
+    if (el.classList?.contains('cdk-visually-hidden')) return
+    if (el.classList?.contains('sr-only')) return
+    if (el.classList?.contains('visually-hidden')) return
+    if (el.getAttribute?.('aria-hidden') === 'true') return
 
     // Mermaid code block: try multiple sources for the raw source.
     // Priority: data-mermaid-code attribute (cheapest) → <code> textContent (fallback)
@@ -158,7 +163,11 @@ function reconstructMarkdownFromDom(root: HTMLElement): string {
 function getLastResponseText(): string {
   const els = getAllResponseElements()
   if (els.length === 0) return ''
-  return reconstructMarkdownFromDom(els[els.length - 1] as HTMLElement)
+  const text = reconstructMarkdownFromDom(els[els.length - 1] as HTMLElement)
+  // Debug: leave breadcrumbs so we can diagnose extraction problems
+  // (open the Gemini tab's DevTools console to see these)
+  ;(window as unknown as { __saLastExtract?: string }).__saLastExtract = text
+  return text
 }
 
 function countResponseElements(): number {
