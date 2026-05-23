@@ -439,8 +439,8 @@ body {
 
 .preview-header {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  gap: 12px;
   padding-bottom: 12px;
   border-bottom: 1px solid var(--border-light);
 }
@@ -451,10 +451,15 @@ body {
   color: var(--text-primary);
 }
 
-.download-buttons { display: flex; gap: 8px; }
+.download-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
 
 .download-buttons button {
-  padding: 6px 12px;
+  padding: 7px 12px;
   background: var(--success);
   color: white;
   border: none;
@@ -466,6 +471,16 @@ body {
 }
 
 .download-buttons button:hover { background: #059669; transform: translateY(-1px); }
+
+.download-btn-primary {
+  background: var(--ai-accent) !important;
+  padding: 9px 16px !important;
+  font-size: 13.5px !important;
+  flex: 1;
+  min-width: 140px;
+}
+
+.download-btn-primary:hover { background: #4f46e5 !important; }
 
 .doc-preview h3, .mermaid-preview h3, .revision h3 {
   font-size: 11px;

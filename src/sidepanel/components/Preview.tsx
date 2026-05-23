@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import mermaid from 'mermaid'
 import { marked } from 'marked'
+import { buildHtmlReport } from '../htmlReport'
 
 marked.setOptions({ gfm: true, breaks: true })
 
@@ -51,11 +52,21 @@ export default function Preview({ document, mermaidText, systemName, onRequestRe
       <div className="preview-header">
         <h2>產出預覽</h2>
         <div className="download-buttons">
+          <button
+            className="download-btn-primary"
+            onClick={() => downloadFile(
+              buildHtmlReport(document, mermaidText, safeName),
+              `業務流程報告_${safeName}_${dateStr}.html`,
+              'text/html'
+            )}
+          >
+            下載 HTML 報告
+          </button>
           <button onClick={() => downloadFile(document, `業務流程_${safeName}_${dateStr}.md`, 'text/markdown')}>
-            下載 .md
+            .md
           </button>
           <button onClick={() => downloadFile(mermaidText, `流程圖_${safeName}_${dateStr}.mmd`, 'text/plain')}>
-            下載 .mmd
+            .mmd
           </button>
         </div>
       </div>
