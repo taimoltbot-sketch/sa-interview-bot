@@ -107,7 +107,7 @@ export default function App() {
             <ChatPanel messages={messages} onSend={handleUserSend} disabled={loading} loading={loading} />
           </motion.div>
         ) : (
-          <motion.div key="preview" style={{ display: 'contents' }} {...fadeSlide}>
+          <motion.div key="preview" style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }} {...fadeSlide}>
             <Preview
               document={previewData.document}
               mermaidText={previewData.mermaid}
