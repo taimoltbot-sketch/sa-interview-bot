@@ -2,8 +2,7 @@ import { StateGraph, Annotation, END, START } from '@langchain/langgraph'
 import type { GraphState } from '../types/index'
 import type { TabManager } from './tabManager'
 import { saveState } from './stateStorage'
-import { analyzeFilesNode } from './nodes/analyzeFiles'
-import { identifyGapsNode } from './nodes/identifyGaps'
+import { initialSetupNode } from './nodes/initialSetup'
 import { decideNextQuestionNode } from './nodes/decideNextQuestion'
 import { askQuestionNode } from './nodes/askQuestion'
 import { consolidateInfoNode } from './nodes/consolidateInfo'
@@ -32,18 +31,12 @@ const GraphStateAnnotation = Annotation.Root({
 })
 
 // Graph 1: Interview flow
-// First run with files:  analyze_files → identify_gaps → decide_next_question → ask_question
-// First run no files:    identify_gaps → decide_next_question → ask_question
-// Subsequent runs:       decide_next_question → ask_question  (skip expensive analysis)
+// First run (any):   initial_setup → ask_question  (1 Gemini call: analyze + gaps + first Q)
+// Subsequent runs:   decide_next_question → ask_question  (1 Gemini call)
 export function buildInterviewGraph(tabManager: TabManager) {
   return new StateGraph(GraphStateAnnotation)
-    .addNode('analyze_files', async (state) => {
-      const update = await analyzeFilesNode(state as GraphState, tabManager)
-      await saveState({ ...state, ...update } as GraphState)
-      return update
-    })
-    .addNode('identify_gaps', async (state) => {
-      const update = await identifyGapsNode(state as GraphState, tabManager)
+    .addNode('initial_setup', async (state) => {
+      const update = await initialSetupNode(state as GraphState, tabManager)
       await saveState({ ...state, ...update } as GraphState)
       return update
     })
@@ -53,16 +46,12 @@ export function buildInterviewGraph(tabManager: TabManager) {
       return update
     })
     .addNode('ask_question', (state) => askQuestionNode(state as GraphState))
-    // Entry routing: only analyze/identify on the very first pass
     .addConditionalEdges(START, (state) => {
       const s = state as GraphState
-      const hasUnanalyzedFiles = s.uploadedFiles.length > 0 && Object.keys(s.analyzedData).length === 0
-      if (hasUnanalyzedFiles) return 'analyze_files'
-      if (s.missingInfo.length === 0) return 'identify_gaps'
-      return 'decide_next_question'
+      // First run: missingInfo not yet populated → run combined setup
+      return s.missingInfo.length === 0 ? 'initial_setup' : 'decide_next_question'
     })
-    .addEdge('analyze_files', 'identify_gaps')
-    .addEdge('identify_gaps', 'decide_next_question')
+    .addEdge('initial_setup', 'ask_question')
     .addEdge('decide_next_question', 'ask_question')
     .addEdge('ask_question', END)
     .compile()
