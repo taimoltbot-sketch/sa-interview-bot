@@ -87,14 +87,22 @@ export class TabManager {
       output: outputTab.id!,
     }
 
-    await this.sendToTab('decision', DECISION_BRAIN_INIT)
-    await this.sendToTab('understanding', UNDERSTANDING_BRAIN_INIT)
-    await this.sendToTab('output', OUTPUT_BRAIN_INIT)
+    // Init prompts run in parallel — they target different tabs, so no contention
+    await Promise.all([
+      this.sendToTab('decision', DECISION_BRAIN_INIT),
+      this.sendToTab('understanding', UNDERSTANDING_BRAIN_INIT),
+      this.sendToTab('output', OUTPUT_BRAIN_INIT),
+    ])
 
-    // Capture session URLs after first prompts (Gemini creates the session at this point)
-    this.sessionUrls.decision     = await this.captureSessionUrl(decisionTab.id!)
-    this.sessionUrls.understanding = await this.captureSessionUrl(understandingTab.id!)
-    this.sessionUrls.output       = await this.captureSessionUrl(outputTab.id!)
+    // Capture session URLs in parallel too
+    const [decisionUrl, understandingUrl, outputUrl] = await Promise.all([
+      this.captureSessionUrl(decisionTab.id!),
+      this.captureSessionUrl(understandingTab.id!),
+      this.captureSessionUrl(outputTab.id!),
+    ])
+    this.sessionUrls.decision = decisionUrl
+    this.sessionUrls.understanding = understandingUrl
+    this.sessionUrls.output = outputUrl
 
     await this.saveSessions()
     this.attachTabRemovedListener()
