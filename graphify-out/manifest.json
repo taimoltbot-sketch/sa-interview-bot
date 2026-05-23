@@ -1,0 +1,197 @@
+{
+  "/Users/marmottai/ClaudeProject/sa-interview-bot/package.json": {
+    "mtime": 1779491071.090977,
+    "ast_hash": "af8da5784656e10fa6266867702ea224",
+    "semantic_hash": "af8da5784656e10fa6266867702ea224"
+  },
+  "/Users/marmottai/ClaudeProject/sa-interview-bot/manifest.json": {
+    "mtime": 1779500998.236407,
+    "ast_hash": "4688ede043c7112d612ebd6d9562be14",
+    "semantic_hash": "4688ede043c7112d612ebd6d9562be14"
+  },
+  "/Users/marmottai/ClaudeProject/sa-interview-bot/tsconfig.json": {
+    "mtime": 1779466513.1088963,
+    "ast_hash": "bed4896d240eea5524475856a706c601",
+    "semantic_hash": "bed4896d240eea5524475856a706c601"
+  },
+  "/Users/marmottai/ClaudeProject/sa-interview-bot/vite.config.ts": {
+    "mtime": 1779466474.518918,
+    "ast_hash": "97759e6971140434cf5581bec9ef7667",
+    "semantic_hash": "97759e6971140434cf5581bec9ef7667"
+  },
+  "/Users/marmottai/ClaudeProject/sa-interview-bot/tests/setup.ts": {
+    "mtime": 1779466505.5821562,
+    "ast_hash": "f7c4a7a358dc768031663b936d5e019a",
+    "semantic_hash": "f7c4a7a358dc768031663b936d5e019a"
+  },
+  "/Users/marmottai/ClaudeProject/sa-interview-bot/tests/stateStorage.test.ts": {
+    "mtime": 1779466729.7714999,
+    "ast_hash": "a0a15a3ad5640adf25b1db3abd6e6243",
+    "semantic_hash": "a0a15a3ad5640adf25b1db3abd6e6243"
+  },
+  "/Users/marmottai/ClaudeProject/sa-interview-bot/tests/tabManager.test.ts": {
+    "mtime": 1779466812.2367332,
+    "ast_hash": "10d281f14ae043827c1b5f1f0d409ecd",
+    "semantic_hash": "10d281f14ae043827c1b5f1f0d409ecd"
+  },
+  "/Users/marmottai/ClaudeProject/sa-interview-bot/tests/gemini.test.ts": {
+    "mtime": 1779466660.2169845,
+    "ast_hash": "77b3a1ea593e2486744389410ed822a1",
+    "semantic_hash": "77b3a1ea593e2486744389410ed822a1"
+  },
+  "/Users/marmottai/ClaudeProject/sa-interview-bot/tests/nodes/analyzeFiles.test.ts": {
+    "mtime": 1779466894.8507197,
+    "ast_hash": "b3332edb24ea73fb852081d76e1a9d6c",
+    "semantic_hash": "b3332edb24ea73fb852081d76e1a9d6c"
+  },
+  "/Users/marmottai/ClaudeProject/sa-interview-bot/tests/nodes/generateDocument.test.ts": {
+    "mtime": 1779466919.6089406,
+    "ast_hash": "55bd821136ae5a90639cdc7a803da32d",
+    "semantic_hash": "55bd821136ae5a90639cdc7a803da32d"
+  },
+  "/Users/marmottai/ClaudeProject/sa-interview-bot/src/vite-env.d.ts": {
+    "mtime": 1779467315.169691,
+    "ast_hash": "0352474ba2918efe13895edbc3780d94",
+    "semantic_hash": "0352474ba2918efe13895edbc3780d94"
+  },
+  "/Users/marmottai/ClaudeProject/sa-interview-bot/src/content-script/isolated-bridge.ts": {
+    "mtime": 1779501930.2587593,
+    "ast_hash": "ed77e7057d446eeb87dd548ecd7f0785",
+    "semantic_hash": "ed77e7057d446eeb87dd548ecd7f0785"
+  },
+  "/Users/marmottai/ClaudeProject/sa-interview-bot/src/content-script/gemini.ts": {
+    "mtime": 1779513948.46441,
+    "ast_hash": "943173e2d92427dfa18e04ef2d28227f",
+    "semantic_hash": "943173e2d92427dfa18e04ef2d28227f"
+  },
+  "/Users/marmottai/ClaudeProject/sa-interview-bot/src/types/index.ts": {
+    "mtime": 1779515357.0932083,
+    "ast_hash": "6fbf68bdf304f83b9c335bae3b838351",
+    "semantic_hash": "6fbf68bdf304f83b9c335bae3b838351"
+  },
+  "/Users/marmottai/ClaudeProject/sa-interview-bot/src/sidepanel/App.tsx": {
+    "mtime": 1779519698.4453585,
+    "ast_hash": "aadaa8155f9db60b7637171d49a64f1b",
+    "semantic_hash": "aadaa8155f9db60b7637171d49a64f1b"
+  },
+  "/Users/marmottai/ClaudeProject/sa-interview-bot/src/sidepanel/main.tsx": {
+    "mtime": 1779467260.3059132,
+    "ast_hash": "1b051cde77fe4994710170199479538a",
+    "semantic_hash": "1b051cde77fe4994710170199479538a"
+  },
+  "/Users/marmottai/ClaudeProject/sa-interview-bot/src/sidepanel/htmlReport.ts": {
+    "mtime": 1779506477.282751,
+    "ast_hash": "7677852a38e493e75376f24b4cdfd35b",
+    "semantic_hash": "7677852a38e493e75376f24b4cdfd35b"
+  },
+  "/Users/marmottai/ClaudeProject/sa-interview-bot/src/sidepanel/components/Preview.tsx": {
+    "mtime": 1779515693.360143,
+    "ast_hash": "f6426c0f24992c7acb2d7998c7df9a29",
+    "semantic_hash": "f6426c0f24992c7acb2d7998c7df9a29"
+  },
+  "/Users/marmottai/ClaudeProject/sa-interview-bot/src/sidepanel/components/FileUpload.tsx": {
+    "mtime": 1779491225.5492048,
+    "ast_hash": "1eee252a0deadb297dfd8dbee0d51f58",
+    "semantic_hash": "1eee252a0deadb297dfd8dbee0d51f58"
+  },
+  "/Users/marmottai/ClaudeProject/sa-interview-bot/src/sidepanel/components/ChatPanel.tsx": {
+    "mtime": 1779514563.1638854,
+    "ast_hash": "a4200d728990801c9fc930702cf6f0cb",
+    "semantic_hash": "a4200d728990801c9fc930702cf6f0cb"
+  },
+  "/Users/marmottai/ClaudeProject/sa-interview-bot/src/service-worker/stateStorage.ts": {
+    "mtime": 1779515363.3807929,
+    "ast_hash": "5b821ecaf47fc5d9353d3a5aa3d1d621",
+    "semantic_hash": "5b821ecaf47fc5d9353d3a5aa3d1d621"
+  },
+  "/Users/marmottai/ClaudeProject/sa-interview-bot/src/service-worker/tabManager.ts": {
+    "mtime": 1779520035.3714712,
+    "ast_hash": "fb71b8b7561821ec5e7e53cac3046627",
+    "semantic_hash": "fb71b8b7561821ec5e7e53cac3046627"
+  },
+  "/Users/marmottai/ClaudeProject/sa-interview-bot/src/service-worker/prompts.ts": {
+    "mtime": 1779519929.6576078,
+    "ast_hash": "0479078265208b1f06a2d7f5bf2b1a9b",
+    "semantic_hash": "0479078265208b1f06a2d7f5bf2b1a9b"
+  },
+  "/Users/marmottai/ClaudeProject/sa-interview-bot/src/service-worker/notify.ts": {
+    "mtime": 1779519984.2376494,
+    "ast_hash": "6a90ce174ddefa4855869145ef8c4d54",
+    "semantic_hash": "6a90ce174ddefa4855869145ef8c4d54"
+  },
+  "/Users/marmottai/ClaudeProject/sa-interview-bot/src/service-worker/graph.ts": {
+    "mtime": 1779515369.6920755,
+    "ast_hash": "573c8ce0767183e0d9bb117279c5ed6c",
+    "semantic_hash": "573c8ce0767183e0d9bb117279c5ed6c"
+  },
+  "/Users/marmottai/ClaudeProject/sa-interview-bot/src/service-worker/index.ts": {
+    "mtime": 1779515401.736322,
+    "ast_hash": "326f9c5a9d7018814b809da9dd93b909",
+    "semantic_hash": "326f9c5a9d7018814b809da9dd93b909"
+  },
+  "/Users/marmottai/ClaudeProject/sa-interview-bot/src/service-worker/nodes/generateMermaid.ts": {
+    "mtime": 1779509932.6020467,
+    "ast_hash": "0b1ffd5a15b30d923478b7a2b9225925",
+    "semantic_hash": "0b1ffd5a15b30d923478b7a2b9225925"
+  },
+  "/Users/marmottai/ClaudeProject/sa-interview-bot/src/service-worker/nodes/initialSetup.ts": {
+    "mtime": 1779513929.5069914,
+    "ast_hash": "8f281a2848c9702048fad49184b46969",
+    "semantic_hash": "8f281a2848c9702048fad49184b46969"
+  },
+  "/Users/marmottai/ClaudeProject/sa-interview-bot/src/service-worker/nodes/generatePreviewFlowchart.ts": {
+    "mtime": 1779519954.6416972,
+    "ast_hash": "b73c44a9cc6517d89da7ede34c31ecb8",
+    "semantic_hash": "b73c44a9cc6517d89da7ede34c31ecb8"
+  },
+  "/Users/marmottai/ClaudeProject/sa-interview-bot/src/service-worker/nodes/consolidateInfo.ts": {
+    "mtime": 1779509908.3585677,
+    "ast_hash": "e8604233f77927f708f5927666c8c9bb",
+    "semantic_hash": "e8604233f77927f708f5927666c8c9bb"
+  },
+  "/Users/marmottai/ClaudeProject/sa-interview-bot/src/service-worker/nodes/identifyGaps.ts": {
+    "mtime": 1779466905.6738162,
+    "ast_hash": "db6c5683787ee6ac4016cabdca58d214",
+    "semantic_hash": "db6c5683787ee6ac4016cabdca58d214"
+  },
+  "/Users/marmottai/ClaudeProject/sa-interview-bot/src/service-worker/nodes/analyzeFiles.ts": {
+    "mtime": 1779501951.9067264,
+    "ast_hash": "dbc4dbe2679ac15c4d827cd221b15fdf",
+    "semantic_hash": "dbc4dbe2679ac15c4d827cd221b15fdf"
+  },
+  "/Users/marmottai/ClaudeProject/sa-interview-bot/src/service-worker/nodes/understandAnswer.ts": {
+    "mtime": 1779466928.5477817,
+    "ast_hash": "478f0b3efd09020831121f0f5cb3d9f6",
+    "semantic_hash": "478f0b3efd09020831121f0f5cb3d9f6"
+  },
+  "/Users/marmottai/ClaudeProject/sa-interview-bot/src/service-worker/nodes/askQuestion.ts": {
+    "mtime": 1779507905.8808947,
+    "ast_hash": "7a496085d7f2cb7027e4e84ad2972d7d",
+    "semantic_hash": "7a496085d7f2cb7027e4e84ad2972d7d"
+  },
+  "/Users/marmottai/ClaudeProject/sa-interview-bot/src/service-worker/nodes/routeRevision.ts": {
+    "mtime": 1779466911.8438249,
+    "ast_hash": "9f9601a2672fdc5b6fb237467f8ef355",
+    "semantic_hash": "9f9601a2672fdc5b6fb237467f8ef355"
+  },
+  "/Users/marmottai/ClaudeProject/sa-interview-bot/src/service-worker/nodes/decideNextQuestion.ts": {
+    "mtime": 1779515390.8913312,
+    "ast_hash": "a3f96a082c728e2dac262eae30d9daad",
+    "semantic_hash": "a3f96a082c728e2dac262eae30d9daad"
+  },
+  "/Users/marmottai/ClaudeProject/sa-interview-bot/src/service-worker/nodes/generateDocument.ts": {
+    "mtime": 1779509919.8033803,
+    "ast_hash": "ebbb110b29265a27df884eceaa3f84b8",
+    "semantic_hash": "ebbb110b29265a27df884eceaa3f84b8"
+  },
+  "/Users/marmottai/ClaudeProject/sa-interview-bot/README.md": {
+    "mtime": 1779499601.9216897,
+    "ast_hash": "5df37c691a6702db24e76c8ea8dc451b",
+    "semantic_hash": "5df37c691a6702db24e76c8ea8dc451b"
+  },
+  "/Users/marmottai/ClaudeProject/sa-interview-bot/src/sidepanel/index.html": {
+    "mtime": 1779467257.400769,
+    "ast_hash": "64944edfc437ff3c3d9947d7e61dc229",
+    "semantic_hash": "64944edfc437ff3c3d9947d7e61dc229"
+  }
+}
