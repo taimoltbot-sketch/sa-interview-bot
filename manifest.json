@@ -3,7 +3,7 @@
   "name": "SA Interview Bot",
   "version": "1.0.0",
   "description": "引導 SA 產出業務流程文件與 Mermaid 圖",
-  "permissions": ["tabs", "storage", "scripting", "activeTab", "clipboardWrite"],
+  "permissions": ["tabs", "storage", "scripting", "activeTab", "clipboardWrite", "sidePanel"],
   "host_permissions": ["https://gemini.google.com/*"],
   "action": {
     "default_title": "SA Interview Bot"

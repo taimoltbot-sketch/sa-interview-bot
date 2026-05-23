@@ -5,6 +5,11 @@ import { understandAnswerNode } from './nodes/understandAnswer'
 import { routeRevisionNode } from './nodes/routeRevision'
 import type { GraphState, MessageType, UploadedFile } from '../types/index'
 
+// Open side panel when toolbar icon is clicked
+chrome.action.onClicked.addListener((tab) => {
+  chrome.sidePanel.open({ tabId: tab.id! })
+})
+
 let tabManager: TabManager | null = null
 let interviewGraph: ReturnType<typeof buildInterviewGraph> | null = null
 let outputGraph: ReturnType<typeof buildOutputGraph> | null = null
