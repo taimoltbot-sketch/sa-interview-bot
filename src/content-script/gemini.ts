@@ -87,11 +87,23 @@ function reconstructMarkdownFromDom(root: HTMLElement): string {
     if (el.classList?.contains('gv-mermaid-toggle')) return
     if (el.classList?.contains('buttons')) return
 
-    // Mermaid code block: pull raw source from data-mermaid-code attribute
+    // Mermaid code block: try multiple sources for the raw source.
+    // Priority: data-mermaid-code attribute (cheapest) → <code> textContent (fallback)
     if (el.hasAttribute('data-mermaid-code')) {
       const code = (el.getAttribute('data-mermaid-code') ?? '').trim()
-      parts.push('\n\n```mermaid\n' + code + '\n```\n\n')
-      return
+      if (code) {
+        parts.push('\n\n```mermaid\n' + code + '\n```\n\n')
+        return
+      }
+    }
+    // gv-mermaid-wrapper is Gemini's mermaid container; look inside for the raw code
+    if (el.classList?.contains('gv-mermaid-wrapper')) {
+      const codeEl = el.querySelector('[data-mermaid-code], code[data-test-id="code-content"]')
+      const code = (codeEl?.getAttribute('data-mermaid-code') ?? codeEl?.textContent ?? '').trim()
+      if (code) {
+        parts.push('\n\n```mermaid\n' + code + '\n```\n\n')
+        return
+      }
     }
 
     // Non-mermaid code block (pre containing code)
