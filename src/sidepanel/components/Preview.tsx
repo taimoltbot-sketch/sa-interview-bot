@@ -2,6 +2,8 @@ import { useEffect, useRef } from 'react'
 import mermaid from 'mermaid'
 import { marked } from 'marked'
 
+marked.setOptions({ gfm: true, breaks: true })
+
 interface Props {
   document: string
   mermaidText: string

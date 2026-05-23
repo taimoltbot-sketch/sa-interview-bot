@@ -151,19 +151,32 @@ export const GENERATE_DOCUMENT_PROMPT = (consolidatedJson: string) => `根據以
 
 ${consolidatedJson}
 
-產出一份繁體中文的業務流程文件（Markdown 格式），包含以下章節：
+產出一份繁體中文的業務流程文件（純 Markdown，不要包含 mermaid 區塊），章節：
 # 系統概述
 ## 使用者角色
 ## 功能說明（每個功能一個子章節，含主流程、例外流程、資料欄位、結束狀態）
 ## 系統整合
-## 業務規則與限制`;
+## 業務規則與限制
+
+**重要格式規則**：請把整份輸出放在 ===DOC_START=== 與 ===DOC_END=== 兩行之間，標記之外不要任何說明文字。例如：
+
+===DOC_START===
+# 系統概述
+...
+===DOC_END===`;
 
 export const GENERATE_MERMAID_PROMPT = (document: string) => `根據以下業務流程文件：
 
 ${document}
 
-分別產出三個 Mermaid 圖（每個用 \`\`\`mermaid 包住，並在前面加 ## 標題）：
+分別產出三個 Mermaid 圖。
 
+**重要格式規則**：請把整份輸出放在 ===MMD_START=== 與 ===MMD_END=== 兩行之間。
+每個 mermaid 區塊都用 \`\`\`mermaid 包住，並在前面加 ## 標題。
+
+範例格式：
+
+===MMD_START===
 ## 主業務流程
 \`\`\`mermaid
 flowchart TD
@@ -180,7 +193,8 @@ flowchart TD
 \`\`\`mermaid
 sequenceDiagram
 （使用者與系統的互動序列）
-\`\`\``;
+\`\`\`
+===MMD_END===`;
 
 // ============================================================================
 // ROUTING & REVISION PROMPTS

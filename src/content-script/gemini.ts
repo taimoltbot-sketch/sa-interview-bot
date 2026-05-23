@@ -66,7 +66,19 @@ function getAllResponseElements(): Element[] {
 function getLastResponseText(): string {
   const els = getAllResponseElements()
   if (els.length === 0) return ''
-  return els[els.length - 1].textContent?.trim() ?? ''
+  const el = els[els.length - 1] as HTMLElement
+  // Clone, strip rendered SVG / <style> noise (Mermaid diagrams pollute textContent),
+  // then use innerText so block elements produce real line breaks.
+  const clone = el.cloneNode(true) as HTMLElement
+  clone.querySelectorAll('svg, style, script, .mermaid-diagram-svg').forEach(n => n.remove())
+  // Re-attach to a hidden host so innerText (which respects layout) works correctly
+  const hidden = document.createElement('div')
+  hidden.style.cssText = 'position:absolute;left:-99999px;top:0;visibility:hidden;white-space:pre-wrap;'
+  hidden.appendChild(clone)
+  document.body.appendChild(hidden)
+  const text = (clone.innerText || clone.textContent || '').trim()
+  hidden.remove()
+  return text
 }
 
 function countResponseElements(): number {
