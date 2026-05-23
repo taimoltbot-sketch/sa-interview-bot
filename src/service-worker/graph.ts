@@ -31,7 +31,10 @@ const GraphStateAnnotation = Annotation.Root({
   revisionTarget: Annotation<string>({ reducer: (_a, b) => b, default: () => '' }),
 })
 
-// Graph 1: Interview flow (START → analyze → identify → decide → ask → END)
+// Graph 1: Interview flow
+// First run with files:  analyze_files → identify_gaps → decide_next_question → ask_question
+// First run no files:    identify_gaps → decide_next_question → ask_question
+// Subsequent runs:       decide_next_question → ask_question  (skip expensive analysis)
 export function buildInterviewGraph(tabManager: TabManager) {
   return new StateGraph(GraphStateAnnotation)
     .addNode('analyze_files', async (state) => {
@@ -50,7 +53,14 @@ export function buildInterviewGraph(tabManager: TabManager) {
       return update
     })
     .addNode('ask_question', (state) => askQuestionNode(state as GraphState))
-    .addEdge(START, 'analyze_files')
+    // Entry routing: only analyze/identify on the very first pass
+    .addConditionalEdges(START, (state) => {
+      const s = state as GraphState
+      const hasUnanalyzedFiles = s.uploadedFiles.length > 0 && Object.keys(s.analyzedData).length === 0
+      if (hasUnanalyzedFiles) return 'analyze_files'
+      if (s.missingInfo.length === 0) return 'identify_gaps'
+      return 'decide_next_question'
+    })
     .addEdge('analyze_files', 'identify_gaps')
     .addEdge('identify_gaps', 'decide_next_question')
     .addEdge('decide_next_question', 'ask_question')
