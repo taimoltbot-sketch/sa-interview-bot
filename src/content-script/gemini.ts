@@ -237,9 +237,10 @@ async function injectPrompt(text: string): Promise<void> {
   await new Promise(r => setTimeout(r, 300))
 }
 
-// Wait until the send button is no longer aria-disabled (Angular has processed the input)
-// Long timeout because background tabs are throttled to 1Hz polling
-async function waitForSendButtonEnabled(timeout = 30000): Promise<HTMLButtonElement | null> {
+// Wait until the send button is no longer aria-disabled (Angular has processed the input).
+// 10s is enough for visible tabs; background-throttled tabs hit this limit and trigger
+// GEMINI_STUCK → tabManager wakes the tab and retries, so we still recover.
+async function waitForSendButtonEnabled(timeout = 10000): Promise<HTMLButtonElement | null> {
   const deadline = Date.now() + timeout
   while (Date.now() < deadline) {
     for (const selector of SEND_BUTTON_SELECTORS) {
