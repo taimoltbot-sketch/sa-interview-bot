@@ -4,7 +4,7 @@ import {
   UNDERSTANDING_BRAIN_INIT,
   OUTPUT_BRAIN_INIT,
 } from './prompts'
-import { notifySubStatus, clearSubStatus } from './notify'
+import { notifySubStatus, clearSubStatus, logSent, logReceived, logEvent } from './notify'
 
 const GEMINI_URL = 'https://gemini.google.com/app'
 const MAX_RETRIES = 8
@@ -195,9 +195,11 @@ export class TabManager {
       try {
         if (attempt > 1) {
           notifySubStatus(`第 ${attempt} 次嘗試，喚醒 Gemini tab`)
+          logEvent(role, `retry attempt ${attempt}`)
           await this.wakeTab(tabId)
         }
 
+        logSent(role, { prompt, attempt })
         const response = await this.sendMessageWithProgress(tabId, {
           type: 'SEND_PROMPT',
           payload: prompt,
@@ -206,12 +208,15 @@ export class TabManager {
         if (!response.success) {
           if (response.error === 'GEMINI_STUCK') {
             notifySubStatus('Gemini UI 卡住，正在重新載入頁面')
+            logEvent(role, 'GEMINI_STUCK, reloading tab')
             await this.reloadTab(role)
             notifySubStatus('頁面已重新載入，重新傳送 prompt')
             continue
           }
+          logEvent(role, `error: ${response.error}`)
           throw new Error(response.error ?? 'Tab returned failure')
         }
+        logReceived(role, response.response!)
         return response.response!
       } catch (err) {
         lastError = err as Error
@@ -244,9 +249,11 @@ export class TabManager {
       try {
         if (attempt > 1) {
           notifySubStatus(`第 ${attempt} 次嘗試，喚醒 Gemini tab`)
+          logEvent(role, `retry attempt ${attempt} (with ${images.length} images)`)
           await this.wakeTab(tabId)
         }
 
+        logSent(role, { prompt, imageCount: images.length, attempt })
         const response = await this.sendMessageWithProgress(tabId, {
           type: 'SEND_PROMPT_WITH_IMAGES',
           payload: { prompt, images },
@@ -255,12 +262,15 @@ export class TabManager {
         if (!response.success) {
           if (response.error === 'GEMINI_STUCK') {
             notifySubStatus('Gemini UI 卡住，正在重新載入頁面')
+            logEvent(role, 'GEMINI_STUCK (with images), reloading tab')
             await this.reloadTab(role)
             notifySubStatus('頁面已重新載入，重新傳送 prompt')
             continue
           }
+          logEvent(role, `error: ${response.error}`)
           throw new Error(response.error ?? 'Tab returned failure')
         }
+        logReceived(role, response.response!)
         return response.response!
       } catch (err) {
         lastError = err as Error

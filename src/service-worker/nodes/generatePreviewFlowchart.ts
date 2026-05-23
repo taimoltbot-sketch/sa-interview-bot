@@ -2,13 +2,6 @@ import type { GraphState } from '../../types/index'
 import { PREVIEW_FLOWCHART_PROMPT } from '../prompts'
 import type { TabManager } from '../tabManager'
 
-function extractBetweenMarkers(text: string, start: string, end: string): string {
-  const startIdx = text.indexOf(start)
-  const endIdx   = text.lastIndexOf(end)
-  if (startIdx === -1 || endIdx === -1 || endIdx < startIdx) return text.trim()
-  return text.slice(startIdx + start.length, endIdx).trim()
-}
-
 // Returns the mermaid code (no fences) for inline chat confirmation
 export async function generatePreviewFlowchart(
   state: GraphState,
@@ -22,8 +15,23 @@ export async function generatePreviewFlowchart(
     features: state.features,
     integrations: state.integrations,
     businessRules: state.businessRules,
+    analyzedData: state.analyzedData,
   }, null, 2)
 
-  const raw = await tabManager.sendToTab('output', PREVIEW_FLOWCHART_PROMPT(stateStr))
+  // Conversation is the real source of truth — structured fields often empty
+  const conversation = state.conversationHistory
+    .map((m, i) => `[${i + 1}] ${m.role === 'bot' ? 'AI' : 'SA'}: ${m.content}`)
+    .join('\n\n')
+
+  const raw = await tabManager.sendToTab('output', PREVIEW_FLOWCHART_PROMPT(stateStr, conversation))
   return extractBetweenMarkers(raw, '===MMD_START===', '===MMD_END===')
+}
+
+function extractBetweenMarkers(text: string, start: string, end: string): string {
+  let result = text
+  const startIdx = result.indexOf(start)
+  if (startIdx !== -1) result = result.slice(startIdx + start.length)
+  const endIdx = result.lastIndexOf(end)
+  if (endIdx !== -1) result = result.slice(0, endIdx)
+  return result.replace(/===(MMD|DOC)_(START|END)===\s*/g, '').trim()
 }
