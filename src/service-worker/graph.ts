@@ -27,6 +27,7 @@ const GraphStateAnnotation = Annotation.Root({
   generatedMermaid: Annotation<string>({ reducer: (_a, b) => b, default: () => '' }),
   conversationHistory: Annotation<GraphState['conversationHistory']>({ reducer: (_a, b) => b, default: () => [] }),
   pendingQuestion: Annotation<string>({ reducer: (_a, b) => b, default: () => '' }),
+  pendingSuggestions: Annotation<string[]>({ reducer: (_a, b) => b, default: () => [] }),
   revisionTarget: Annotation<string>({ reducer: (_a, b) => b, default: () => '' }),
 })
 

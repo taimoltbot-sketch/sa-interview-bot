@@ -34,6 +34,7 @@ export function createInitialState(): GraphState {
     generatedMermaid: '',
     conversationHistory: [],
     pendingQuestion: '',
+    pendingSuggestions: [],
     revisionTarget: '',
   }
 }

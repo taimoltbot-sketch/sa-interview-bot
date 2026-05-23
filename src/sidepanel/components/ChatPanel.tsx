@@ -80,23 +80,41 @@ export default function ChatPanel({ messages, onSend, disabled, loading }: Props
     <div className="chat-panel">
       <div className="messages">
         <AnimatePresence initial={false}>
-          {messages.map((msg, i) => (
-            <motion.div
-              key={i}
-              className={`message message-${msg.role}`}
-              initial={{ opacity: 0, y: 8, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{ duration: 0.22, ease: 'easeOut' }}
-            >
-              {msg.role === 'bot' && (
-                <div className="bot-header">
-                  <div className="bot-avatar">AI</div>
-                  <span className="bot-name">Assistant</span>
-                </div>
-              )}
-              <div className="bubble">{msg.content}</div>
-            </motion.div>
-          ))}
+          {messages.map((msg, i) => {
+            const isLastBot = msg.role === 'bot' && i === messages.length - 1
+            const showSuggestions = isLastBot && !disabled && msg.suggestions && msg.suggestions.length > 0
+            return (
+              <motion.div
+                key={i}
+                className={`message message-${msg.role}`}
+                initial={{ opacity: 0, y: 8, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ duration: 0.22, ease: 'easeOut' }}
+              >
+                {msg.role === 'bot' && (
+                  <div className="bot-header">
+                    <div className="bot-avatar">AI</div>
+                    <span className="bot-name">Assistant</span>
+                  </div>
+                )}
+                <div className="bubble">{msg.content}</div>
+                {showSuggestions && (
+                  <div className="suggestions">
+                    {msg.suggestions!.map((s, j) => (
+                      <motion.button
+                        key={j}
+                        className="suggestion-chip"
+                        onClick={() => onSend(s)}
+                        whileTap={{ scale: 0.95 }}
+                      >
+                        {s}
+                      </motion.button>
+                    ))}
+                  </div>
+                )}
+              </motion.div>
+            )
+          })}
           {loading && <TypingIndicator key="typing" />}
         </AnimatePresence>
         <div ref={bottomRef} />

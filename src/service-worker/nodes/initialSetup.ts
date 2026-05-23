@@ -37,12 +37,15 @@ export async function initialSetupNode(
     missingInfo?: string[]
     nextPhase?: string
     firstQuestion?: string
+    suggestions?: string[]
   }
 
+  // Use || (not ??) so empty strings also fall back to default
   return {
-    analyzedData:  parsed.analyzedData  ?? {},
-    missingInfo:   parsed.missingInfo   ?? [],
-    phase:         (parsed.nextPhase    ?? 'overview') as GraphState['phase'],
-    pendingQuestion: parsed.firstQuestion ?? '請問這個系統主要是用來做什麼的？',
+    analyzedData:    parsed.analyzedData ?? {},
+    missingInfo:     parsed.missingInfo  ?? [],
+    phase:           (parsed.nextPhase   || 'overview') as GraphState['phase'],
+    pendingQuestion: parsed.firstQuestion || '請問這個系統主要是用來做什麼的？',
+    pendingSuggestions: Array.isArray(parsed.suggestions) ? parsed.suggestions : [],
   }
 }

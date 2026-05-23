@@ -40,6 +40,7 @@ export interface GraphState {
   generatedMermaid: string
   conversationHistory: ChatMessage[]
   pendingQuestion: string
+  pendingSuggestions: string[]
   revisionTarget: string
 }
 
@@ -47,6 +48,7 @@ export interface ChatMessage {
   role: 'bot' | 'user'
   content: string
   timestamp: number
+  suggestions?: string[]
 }
 
 export type MessageType =
