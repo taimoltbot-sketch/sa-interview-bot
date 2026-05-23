@@ -6,29 +6,21 @@ import {
 } from './prompts'
 
 const GEMINI_URL = 'https://gemini.google.com/app'
-const MAX_RETRIES = 3
-// In test environment (Vitest), VITEST env var is set — use 0 delay to keep tests fast
-function getInitDelay(): number {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return (import.meta as any).env?.VITEST ? 0 : 3000
-  } catch {
-    return 3000
-  }
-}
-const INIT_DELAY = getInitDelay()
+const MAX_RETRIES = 8
+const isTest = (() => {
+  try { return !!(import.meta as any).env?.VITEST } catch { return false }
+})()
 
 export class TabManager {
   private registry: TabRegistry = { decision: 0, understanding: 0, output: 0 }
 
   async init(): Promise<void> {
-    // Open tabs sequentially with delays to avoid Google rate limiting / CAPTCHA
     const decisionTab = await chrome.tabs.create({ url: GEMINI_URL, pinned: true })
-    await new Promise(r => setTimeout(r, INIT_DELAY))
+    await this.waitForTabReady(decisionTab.id!)
     const understandingTab = await chrome.tabs.create({ url: GEMINI_URL, pinned: true })
-    await new Promise(r => setTimeout(r, INIT_DELAY))
+    await this.waitForTabReady(understandingTab.id!)
     const outputTab = await chrome.tabs.create({ url: GEMINI_URL, pinned: true })
-    await new Promise(r => setTimeout(r, INIT_DELAY))
+    await this.waitForTabReady(outputTab.id!)
 
     this.registry = {
       decision: decisionTab.id!,
@@ -36,19 +28,44 @@ export class TabManager {
       output: outputTab.id!,
     }
 
-    // Send init prompts sequentially too
     await this.sendToTab('decision', DECISION_BRAIN_INIT)
     await this.sendToTab('understanding', UNDERSTANDING_BRAIN_INIT)
     await this.sendToTab('output', OUTPUT_BRAIN_INIT)
 
     chrome.tabs.onRemoved.addListener((tabId) => {
       const role = this.getRoleByTabId(tabId)
-      if (role) this.reopenTab(role).catch(() => { /* suppress unhandled rejection from background listener */ })
+      if (role) this.reopenTab(role).catch(() => {})
     })
   }
 
   getTabId(role: TabRole): number {
     return this.registry[role]
+  }
+
+  // Wait for tab to finish loading AND content script to be responsive
+  private async waitForTabReady(tabId: number): Promise<void> {
+    if (isTest) return
+
+    // Step 1: wait for tab status === 'complete'
+    await new Promise<void>((resolve) => {
+      const poll = async () => {
+        const tab = await chrome.tabs.get(tabId).catch(() => null)
+        if (tab?.status === 'complete') return resolve()
+        setTimeout(poll, 600)
+      }
+      poll()
+    })
+
+    // Step 2: ping until content script responds (up to 30s)
+    for (let i = 0; i < 60; i++) {
+      try {
+        await chrome.tabs.sendMessage(tabId, { type: 'PING' })
+        return
+      } catch {
+        await new Promise(r => setTimeout(r, 500))
+      }
+    }
+    // Content script didn't respond in time — proceed anyway, sendToTab will retry
   }
 
   async sendToTab(role: TabRole, prompt: string): Promise<string> {
@@ -66,7 +83,7 @@ export class TabManager {
         return response.response!
       } catch (err) {
         lastError = err as Error
-        if (attempt < MAX_RETRIES) await new Promise(r => setTimeout(r, 1000 * attempt))
+        if (attempt < MAX_RETRIES) await new Promise(r => setTimeout(r, 1500 * attempt))
       }
     }
     throw new Error(`Tab ${role} failed after ${MAX_RETRIES} retries: ${lastError.message}`)
