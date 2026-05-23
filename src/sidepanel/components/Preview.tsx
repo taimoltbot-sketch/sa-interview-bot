@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import mermaid from 'mermaid'
 import { marked } from 'marked'
 import { buildHtmlReport } from '../htmlReport'
@@ -27,6 +28,8 @@ function extractMermaidBlocks(text: string): string[] {
 
 export default function Preview({ document, mermaidText, systemName, onRequestRevision, onContinueDiscussion }: Props) {
   const mermaidRef = useRef<HTMLDivElement>(null)
+  const [zoomedSvg, setZoomedSvg] = useState<string | null>(null)
+  const [zoomScale, setZoomScale] = useState(1)
 
   useEffect(() => {
     if (!mermaidRef.current || !mermaidText) return
@@ -35,6 +38,18 @@ export default function Preview({ document, mermaidText, systemName, onRequestRe
       .map((block, i) => `<div class="mermaid" id="mermaid-${i}">${block}</div>`)
       .join('')
     mermaid.run({ nodes: Array.from(mermaidRef.current.querySelectorAll('.mermaid')) })
+      .then(() => {
+        if (!mermaidRef.current) return
+        mermaidRef.current.querySelectorAll<HTMLElement>('.mermaid').forEach(el => {
+          el.classList.add('mermaid-zoomable')
+          el.title = '點擊放大'
+          el.addEventListener('click', () => {
+            const svg = el.querySelector('svg')
+            if (svg) { setZoomScale(1); setZoomedSvg(svg.outerHTML) }
+          })
+        })
+      })
+      .catch(() => {})
   }, [mermaidText])
 
   const downloadFile = (content: string, filename: string, mime: string) => {
@@ -86,6 +101,26 @@ export default function Preview({ document, mermaidText, systemName, onRequestRe
         <h3>流程圖</h3>
         <div ref={mermaidRef} />
       </section>
+
+      {zoomedSvg && createPortal(
+        <div className="mermaid-zoom-overlay" onClick={() => setZoomedSvg(null)}>
+          <button className="mermaid-zoom-close" onClick={() => setZoomedSvg(null)}>✕</button>
+          <div
+            className="mermaid-zoom-inner"
+            onClick={e => e.stopPropagation()}
+            onWheel={e => {
+              e.preventDefault()
+              setZoomScale(s => Math.min(5, Math.max(0.3, s - e.deltaY * 0.001)))
+            }}
+          >
+            <div
+              style={{ transform: `scale(${zoomScale})`, transformOrigin: 'center top', transition: 'transform 0.1s ease' }}
+              dangerouslySetInnerHTML={{ __html: zoomedSvg }}
+            />
+          </div>
+        </div>,
+        window.document.body
+      )}
 
       <section className="revision">
         <h3>還想做什麼？</h3>

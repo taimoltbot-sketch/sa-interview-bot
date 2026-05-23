@@ -62,6 +62,40 @@ export function buildHtmlReport(document: string, mermaidText: string, systemNam
       flowchart: { useMaxWidth: true, htmlLabels: true },
       sequence: { useMaxWidth: true }
     });
+    // Zoom lightbox
+    document.addEventListener('DOMContentLoaded', () => {
+      setTimeout(() => {
+        document.querySelectorAll('.mermaid svg').forEach(svg => {
+          svg.style.cursor = 'zoom-in';
+          svg.title = '點擊放大 · 滾輪縮放';
+          svg.addEventListener('click', () => {
+            let scale = 1;
+            const overlay = document.createElement('div');
+            overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.75);display:flex;align-items:flex-start;justify-content:center;padding:48px 16px 16px;overflow:auto';
+            const close = document.createElement('button');
+            close.textContent = '✕';
+            close.style.cssText = 'position:fixed;top:12px;right:16px;z-index:10000;background:white;border:none;border-radius:50%;width:32px;height:32px;font-size:16px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.3)';
+            const inner = document.createElement('div');
+            inner.style.cssText = 'background:white;border-radius:12px;padding:24px;overflow:auto;max-width:95vw';
+            const wrapper = document.createElement('div');
+            wrapper.style.cssText = 'transform-origin:center top;transition:transform .1s ease';
+            wrapper.innerHTML = svg.outerHTML;
+            wrapper.querySelector('svg').style.cssText = 'max-width:none;height:auto';
+            inner.appendChild(wrapper);
+            overlay.appendChild(close);
+            overlay.appendChild(inner);
+            overlay.addEventListener('wheel', e => {
+              e.preventDefault();
+              scale = Math.min(5, Math.max(0.3, scale - e.deltaY * 0.001));
+              wrapper.style.transform = 'scale(' + scale + ')';
+            }, { passive: false });
+            close.addEventListener('click', () => overlay.remove());
+            overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+            document.body.appendChild(overlay);
+          });
+        });
+      }, 1500); // wait for mermaid SVG render
+    });
   </script>
   <style>
     body {

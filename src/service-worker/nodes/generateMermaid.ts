@@ -20,5 +20,8 @@ export async function generateMermaidNode(
   notifyStatus('正在繪製詳細流程圖與決策圖...')
   const raw = await tabManager.sendToTab('output', GENERATE_MERMAID_PROMPT(state.generatedDocument))
   const mermaid = extractBetweenMarkers(raw, '===MMD_START===', '===MMD_END===')
+  if (!mermaid || !mermaid.includes('```mermaid')) {
+    console.warn('[generateMermaid] empty or missing mermaid fences. raw length:', raw?.length, 'snippet:', raw?.slice(0, 200))
+  }
   return { generatedMermaid: mermaid }
 }

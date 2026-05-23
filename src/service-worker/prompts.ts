@@ -392,30 +392,64 @@ export const GENERATE_MERMAID_PROMPT = (document: string) => `根據以下業務
 
 ${document}
 
-分別產出三個 Mermaid 圖。
+**🔴 產出規則**：
+1. 找出文件中 \`## 功能說明\` 底下的所有 \`### N. 功能名稱\` 小節，**每個功能各產出兩張圖**：
+   - **{功能名} — 主流程**：flowchart TD，含主要步驟（誰在哪個畫面做什麼 → 系統怎麼回應）
+   - **{功能名} — 決策流程**：flowchart TD，含所有決策點與異常路徑（decision diamond、例外流程）
+2. 最後加一張 **系統互動序列**：sequenceDiagram，涵蓋所有功能的跨角色互動
+3. 若文件只有一個功能，也要產出兩張功能圖 + 一張序列圖，共三張
+4. **Mermaid 語法規則**：節點 ID 只用英文字母/數字/底線；含中文或空格的標籤用雙引號包住；不要用括號在箭頭 label 外
 
 **重要格式規則**：請把整份輸出放在 ===MMD_START=== 與 ===MMD_END=== 兩行之間。
-每個 mermaid 區塊都用 \`\`\`mermaid 包住，並在前面加 ## 標題。
+每個 mermaid 區塊都用 \`\`\`mermaid 包住，並在前面加 ## 標題（標題即圖名）。
+只輸出格式，標記之外不要任何說明文字。
 
-範例格式：
+範例（兩個功能）：
 
 ===MMD_START===
-## 主業務流程
+## 施工項目管理 — 主流程
 \`\`\`mermaid
 flowchart TD
-（完整的主業務流程圖）
+  Start(["系統管理員進入施工項目管理頁"]) --> List["顯示施工項目列表"]
+  List --> Click["點擊「刪除」按鈕"]
+  Click --> Confirm{"二次確認對話框"}
+  Confirm -->|"點擊確定"| SoftDelete["執行軟刪除 is_deleted=true"]
+  Confirm -->|"點擊取消"| End(["流程結束"])
+  SoftDelete --> Refresh["重新整理列表，隱藏該項目"]
+  Refresh --> End
 \`\`\`
 
-## 決策流程
+## 施工項目管理 — 決策流程
 \`\`\`mermaid
 flowchart TD
-（含所有判斷點的決策流程圖）
+  Start(["操作觸發"]) --> AuthCheck{"角色是否有刪除權限？"}
+  AuthCheck -->|"否（工地主任/現場人員）"| Reject["顯示「權限不足」提示"]
+  AuthCheck -->|"是（管理員/高階主管）"| Confirm{"使用者確認刪除？"}
+  Confirm -->|"取消"| End(["流程結束"])
+  Confirm -->|"確定"| DBCheck{"資料庫外鍵約束是否通過？"}
+  DBCheck -->|"通過"| Success["軟刪除成功，列表隱藏"]
+  DBCheck -->|"FK Constraint Error"| FKError["顯示「項目已被引用，無法刪除」"]
+  DBCheck -->|"DB Lock / 逾時"| SysError["顯示「系統繁忙」，自動 Rollback"]
+  Success --> End
+  FKError --> End
+  SysError --> End
 \`\`\`
 
 ## 系統互動序列
 \`\`\`mermaid
 sequenceDiagram
-（使用者與系統的互動序列）
+  actor SA as 系統管理員
+  participant UI as 前端頁面
+  participant Auth as 權限模組
+  participant DB as 資料庫
+  SA->>UI: 點擊「刪除」按鈕
+  UI->>Auth: 驗證角色權限
+  Auth-->>UI: 通過/拒絕
+  UI->>SA: 彈出二次確認對話框
+  SA->>UI: 點擊「確定」
+  UI->>DB: 執行軟刪除 (is_deleted=true)
+  DB-->>UI: 更新成功
+  UI->>SA: 重新整理列表
 \`\`\`
 ===MMD_END===`;
 
