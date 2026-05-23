@@ -145,41 +145,51 @@ async function injectPrompt(text: string): Promise<void> {
   await new Promise(r => setTimeout(r, 300))
 }
 
+// Wait until the send button is no longer aria-disabled (Angular has processed the input)
+async function waitForSendButtonEnabled(timeout = 8000): Promise<HTMLButtonElement | null> {
+  const deadline = Date.now() + timeout
+  while (Date.now() < deadline) {
+    for (const selector of SEND_BUTTON_SELECTORS) {
+      const btn = document.querySelector(selector) as HTMLButtonElement | null
+      if (btn && btn.closest('[aria-disabled="true"]') === null && !btn.disabled) return btn
+    }
+    await new Promise(r => setTimeout(r, 100))
+  }
+  return null
+}
+
+function inputIsEmpty(): boolean {
+  return !findElement(INPUT_SELECTORS)?.textContent?.trim()
+}
+
 async function clickSend(): Promise<void> {
-  await new Promise(r => setTimeout(r, 500))
-
-  // Primary: btn.click() — works in MAIN world (Zone.js is active → Angular detects the event)
-  for (const selector of SEND_BUTTON_SELECTORS) {
-    const btn = document.querySelector(selector) as HTMLButtonElement | null
-    if (btn) {
-      btn.click()
-      await new Promise(r => setTimeout(r, 300))
-      if (!findElement(INPUT_SELECTORS)?.textContent?.trim()) return
-    }
-  }
-
-  // Fallback: PointerEvent sequence with real coordinates
-  for (const selector of SEND_BUTTON_SELECTORS) {
-    const btn = document.querySelector(selector) as HTMLButtonElement | null
-    if (btn) {
-      const rect = btn.getBoundingClientRect()
-      const cx = rect.left + rect.width / 2
-      const cy = rect.top + rect.height / 2
-      const opts = { bubbles: true, cancelable: true, composed: true, clientX: cx, clientY: cy }
-      btn.dispatchEvent(new PointerEvent('pointerdown', { ...opts, isPrimary: true }))
-      btn.dispatchEvent(new PointerEvent('pointerup', { ...opts, isPrimary: true }))
-      btn.dispatchEvent(new MouseEvent('click', opts))
-      await new Promise(r => setTimeout(r, 300))
-      if (!findElement(INPUT_SELECTORS)?.textContent?.trim()) return
-    }
-  }
-
-  // Last resort: Enter key on rich-textarea host element
-  const host = document.querySelector('rich-textarea') as HTMLElement | null
-  if (host) {
+  // Step 1: Enter key on the editor — most reliable for Quill (enterkeyhint="send")
+  const editor = findElement(INPUT_SELECTORS) as HTMLElement | null
+  if (editor) {
     const kOpts: KeyboardEventInit = { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true, cancelable: true, composed: true }
-    host.dispatchEvent(new KeyboardEvent('keydown', kOpts))
-    host.dispatchEvent(new KeyboardEvent('keyup', { ...kOpts, cancelable: false }))
+    editor.dispatchEvent(new KeyboardEvent('keydown', kOpts))
+    editor.dispatchEvent(new KeyboardEvent('keypress', kOpts))
+    editor.dispatchEvent(new KeyboardEvent('keyup', { ...kOpts, cancelable: false }))
+    await new Promise(r => setTimeout(r, 600))
+    if (inputIsEmpty()) return
+  }
+
+  // Step 2: Wait for Angular to enable the button, then click
+  const btn = await waitForSendButtonEnabled()
+  if (btn) {
+    btn.click()
+    await new Promise(r => setTimeout(r, 400))
+    if (inputIsEmpty()) return
+
+    // Step 3: PointerEvent sequence if plain click didn't register
+    const rect = btn.getBoundingClientRect()
+    const cx = rect.left + rect.width / 2
+    const cy = rect.top + rect.height / 2
+    const opts = { bubbles: true, cancelable: true, composed: true, clientX: cx, clientY: cy }
+    btn.dispatchEvent(new PointerEvent('pointerdown', { ...opts, isPrimary: true }))
+    btn.dispatchEvent(new PointerEvent('pointerup', { ...opts, isPrimary: true }))
+    btn.dispatchEvent(new MouseEvent('click', opts))
+    await new Promise(r => setTimeout(r, 400))
   }
 }
 
