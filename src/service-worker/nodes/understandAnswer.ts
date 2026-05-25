@@ -19,8 +19,8 @@ export async function understandAnswerNode(
 
   const jsonMatch = raw.match(/\{[\s\S]*\}/)
   const parsed = jsonMatch
-    ? JSON.parse(jsonMatch[0]) as { extractedInfo: Record<string, unknown>; needsClarification: boolean; clarificationQuestion: string }
-    : { extractedInfo: {}, needsClarification: false, clarificationQuestion: '' }
+    ? JSON.parse(jsonMatch[0]) as { extractedInfo: Record<string, unknown>; needsClarification: boolean; clarificationQuestion: string; currentFeatureName?: string }
+    : { extractedInfo: {}, needsClarification: false, clarificationQuestion: '', currentFeatureName: undefined }
 
   const userMessage: ChatMessage = { role: 'user', content: userAnswer, timestamp: Date.now() }
   const newHistory = [...state.conversationHistory, userMessage]
@@ -32,8 +32,8 @@ export async function understandAnswerNode(
   const update: Partial<GraphState> = { conversationHistory: newHistory }
   const info = parsed.extractedInfo
 
-  if (typeof info.currentFeatureName === 'string' && info.currentFeatureName.trim()) {
-    update.currentFeatureName = info.currentFeatureName.trim()
+  if (typeof parsed.currentFeatureName === 'string' && parsed.currentFeatureName.trim()) {
+    update.currentFeatureName = parsed.currentFeatureName.trim()
   }
 
   switch (state.phase) {
