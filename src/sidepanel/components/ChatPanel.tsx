@@ -180,6 +180,34 @@ export default function ChatPanel({ messages, onSend, disabled, loading, loading
                     ))}
                   </div>
                 )}
+                {msg.logicSlice && (
+                  <div className="logic-slice-card">
+                    <div className="ls-row"><strong>1. 觸發：</strong>{msg.logicSlice.trigger}</div>
+                    <div className="ls-row"><strong>2. 主流程：</strong>
+                      <ol>{msg.logicSlice.mainFlow.map((s, k) => <li key={k}>{s}</li>)}</ol>
+                    </div>
+                    {msg.logicSlice.decisionPoints.length > 0 && (
+                      <div className="ls-row"><strong>3. 決策點：</strong>
+                        {msg.logicSlice.decisionPoints.map((dp, k) => (
+                          <div key={k} className="ls-dp">
+                            <em>{dp.condition}</em>
+                            <ul>{dp.branches.map((b, j) => <li key={j}>{b.case} → {b.result}</li>)}</ul>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {msg.logicSlice.exceptionFlow.length > 0 && (
+                      <div className="ls-row"><strong>4. 例外：</strong>
+                        <ul>{msg.logicSlice.exceptionFlow.map((ef, k) => <li key={k}><strong>{ef.name}</strong>：{ef.trigger} → {ef.handling}</li>)}</ul>
+                      </div>
+                    )}
+                    {msg.logicSlice.endStates.length > 0 && (
+                      <div className="ls-row"><strong>5. 結束狀態：</strong>
+                        <ul>{msg.logicSlice.endStates.map((s, k) => <li key={k}>{s}</li>)}</ul>
+                      </div>
+                    )}
+                  </div>
+                )}
                 {isLastBot && !disabled && msg.actions && msg.actions.length > 0 && (
                   <div className="message-actions">
                     {msg.actions.map((a, k) => (

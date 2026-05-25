@@ -420,6 +420,25 @@ body {
   border-bottom: 1px solid var(--border-light);
 }
 
+/* ── verify_logic slice card ── */
+.logic-slice-card {
+  margin-top: 10px;
+  background: white;
+  border: 1px solid var(--border-light);
+  border-left: 3px solid var(--ai-accent);
+  border-radius: 12px;
+  padding: 14px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.logic-slice-card .ls-row { margin-bottom: 10px; }
+.logic-slice-card .ls-row:last-child { margin-bottom: 0; }
+.logic-slice-card strong { color: var(--ai-accent); }
+.logic-slice-card ol, .logic-slice-card ul { padding-left: 1.3rem; margin: 4px 0; }
+.logic-slice-card li { margin: 2px 0; }
+.logic-slice-card .ls-dp { margin: 6px 0; }
+.logic-slice-card .ls-dp em { color: #475569; font-style: normal; font-weight: 500; }
+
 /* ── Inline Mermaid in chat ── */
 .mermaid-preview-card {
   margin-top: 10px;
