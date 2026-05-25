@@ -87,6 +87,28 @@ ${state}
 - 互斥/二選一（是/否、A/B/C 三擇一）→ multiSelect = false
 - 可同時都成立（有哪些角色？整合哪些系統？）→ multiSelect = true
 
+🔴 問題寫法規則（每題都必須符合）
+
+每個 question 必須是「Hypothesis + Edge Case + 選項」三段式，禁止開放式漫談：
+
+✅ 範例：
+「我猜你的 {功能名} 流程是 {hypothesis 一句話}。但在這類系統，通常會遇到三個邊界狀況：
+ (A) {edge case A}
+ (B) {edge case B}
+ (C) {edge case C}
+請問你的系統各自怎麼處理？或還有其他要補的？」
+
+❌ 禁止寫法：
+- 純開放式：「請說明這個功能的流程」
+- 沒 hypothesis：「有什麼 edge case？」（要 SA 自己想）
+- 沒選項：「會發生什麼？」（讓 SA 漫無目的講）
+
+🔴 Hypothesis 來源：從 systemOverview、已知 features、SA 剛答的內容自推。推不出來時明說：「我目前對 X 還沒概念，請先講一下這部分大概在做什麼」。
+🔴 Edge case 來源：常見軟體 anti-pattern（權限、併發、資料不一致、外部失敗、超量、退回）自生。不要硬塞與當前 feature 無關的。
+⚠️ 嚴禁用建設/施工/工地/購物車當例子（會污染 hypothesis）—— SA 沒提到就不准出現。
+
+suggestions 必須對應上述 (A)(B)(C) 三個 edge case + 一個「其他（請說明）」。
+
 ────────────────────────────────────────
 **B) 評估「目前討論的這個模組/功能」的流程豐富度**
 
@@ -119,12 +141,17 @@ ${state}
   "question": "要向 SA 顯示的問題（繁體中文，友善語氣）",
   "suggestions": ["建議答案1", "建議答案2"],
   "multiSelect": false,
+  "currentFeatureName": "目前聚焦討論的功能名（從 systemOverview / features / 對話自推；無法判斷時給空字串）",
   "flowReadiness": {
     "ready": false,
     "decisionPointsCount": 1,
     "hasExceptionFlow": false,
     "endStatesCount": 1,
     "reason": "目前只有單線主流程，缺少權限驗證失敗的處理與審核拒絕後的流向"
+  },
+  "logicReadiness": {
+    "ready": false,
+    "reason": "為什麼判定這個 feature 的核心邏輯已成熟（主流程 + ≥1 decision branch + ≥1 例外路徑）"
   }
 }`;
 
