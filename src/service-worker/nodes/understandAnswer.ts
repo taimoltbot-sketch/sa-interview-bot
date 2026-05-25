@@ -32,6 +32,10 @@ export async function understandAnswerNode(
   const update: Partial<GraphState> = { conversationHistory: newHistory }
   const info = parsed.extractedInfo
 
+  if (typeof info.currentFeatureName === 'string' && info.currentFeatureName.trim()) {
+    update.currentFeatureName = info.currentFeatureName.trim()
+  }
+
   switch (state.phase) {
     case 'overview':
       update.systemOverview = (info.systemOverview as string) ?? userAnswer

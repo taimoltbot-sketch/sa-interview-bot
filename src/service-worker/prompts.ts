@@ -180,6 +180,7 @@ SA 的回答：${answer}
 請理解並結構化這個回答。回傳 JSON（不要有任何 markdown 標記）：
 {
   "extractedInfo": {},
+  "currentFeatureName": "這次回答主要在描述哪個功能（沒有明確功能時給空字串）",
   "needsClarification": false,
   "clarificationQuestion": ""
 }`;
