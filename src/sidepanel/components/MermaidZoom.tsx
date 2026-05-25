@@ -12,8 +12,24 @@ export function MermaidZoom({ svgHtml, onClose }: Props) {
   const [isDragging, setIsDragging] = useState(false)
   const dragStart = useRef({ x: 0, y: 0, panX: 0, panY: 0 })
   const baseSize = useRef({ w: 0, h: 0 })
+  const scaleRef = useRef(1)
   const viewportRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLDivElement>(null)
+
+  // Apply scale by resizing the SVG itself (not CSS transform scale) so the
+  // browser re-rasterizes from vectors at the new size — crisp at any zoom.
+  // Done synchronously here (called from wheel/fit/reset) rather than via a
+  // [scale] effect, so wheel zoom never depends on an effect re-running.
+  const applyScale = useCallback((next: number) => {
+    const clamped = Math.min(10, Math.max(0.1, next))
+    scaleRef.current = clamped
+    const svg = canvasRef.current?.querySelector<SVGSVGElement>('svg')
+    if (svg && baseSize.current.w > 0) {
+      svg.style.width = (baseSize.current.w * clamped) + 'px'
+      svg.style.height = (baseSize.current.h * clamped) + 'px'
+    }
+    setScale(clamped) // state only drives the % readout
+  }, [])
 
   // On mount: measure the SVG's natural size, then fit-to-viewport
   useEffect(() => {
@@ -32,19 +48,9 @@ export function MermaidZoom({ svgHtml, onClose }: Props) {
       if (r.width === 0 || r.height === 0) return
       baseSize.current = { w: r.width, h: r.height }
       const fit = Math.min(viewport.clientWidth / r.width, viewport.clientHeight / r.height) * 0.95
-      setScale(fit)
+      applyScale(fit)
     })
-  }, [svgHtml])
-
-  // Apply scale by resizing the SVG itself (not CSS transform scale) so the
-  // browser re-rasterizes from vectors at the new size. CSS transform scale
-  // upsamples the rendered bitmap and produces a blurry result at >1x.
-  useEffect(() => {
-    const svg = canvasRef.current?.querySelector<SVGSVGElement>('svg')
-    if (!svg || baseSize.current.w === 0) return
-    svg.style.width = (baseSize.current.w * scale) + 'px'
-    svg.style.height = (baseSize.current.h * scale) + 'px'
-  }, [scale])
+  }, [svgHtml, applyScale])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
@@ -76,13 +82,13 @@ export function MermaidZoom({ svgHtml, onClose }: Props) {
     if (!vp) return
     const handler = (e: WheelEvent) => {
       e.preventDefault()
-      setScale(s => Math.min(10, Math.max(0.1, s - e.deltaY * 0.001)))
+      applyScale(scaleRef.current - e.deltaY * 0.0015)
     }
     vp.addEventListener('wheel', handler, { passive: false })
     return () => vp.removeEventListener('wheel', handler)
-  }, [])
+  }, [applyScale])
 
-  const reset = () => { setScale(1); setPan({ x: 0, y: 0 }) }
+  const reset = () => { applyScale(1); setPan({ x: 0, y: 0 }) }
 
   const openInNewTab = () => {
     const html = `<!doctype html><html lang="zh-TW"><head><meta charset="utf-8"><title>流程圖</title>
