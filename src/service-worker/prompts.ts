@@ -451,6 +451,30 @@ ${document}
 （完整 HTML…）
 ===HTML_END===`;
 
+export const VERIFY_LOGIC_PROMPT = (featureName: string, recentConversation: string) => `你正在和 SA 確認「${featureName}」這個功能的業務邏輯。
+
+請從以下最近的對話中，抽出 SA 已經講清楚的邏輯，整理成結構化 JSON。
+
+對話：
+${recentConversation}
+
+🔴 重要原則
+- 只抽 SA 真的講過、或明確同意過的內容
+- 沒講過的欄位寫空字串 "" 或空陣列 []，不要腦補
+- 不要套用其他領域慣例（建設/施工/工地/購物車等）除非 SA 自己提到
+
+回傳 JSON（不要有任何 markdown 標記）：
+{
+  "featureName": "${featureName}",
+  "trigger": "什麼角色在什麼情境下進入這個功能",
+  "mainFlow": ["（角色） 在 X 頁面 操作 → 系統 反應", "..."],
+  "decisionPoints": [
+    { "condition": "系統檢查什麼", "branches": [{ "case": "為 true 時", "result": "走 X 分支" }, { "case": "為 false 時", "result": "走 Y 分支" }] }
+  ],
+  "exceptionFlow": [{ "name": "例外名", "trigger": "什麼狀況觸發", "handling": "系統如何處理" }],
+  "endStates": ["成功時的狀態", "失敗時的狀態"]
+}`;
+
 export const GENERATE_MERMAID_PROMPT = (document: string) => `根據以下業務流程文件：
 
 ${document}
