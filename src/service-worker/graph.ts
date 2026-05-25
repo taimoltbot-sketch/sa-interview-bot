@@ -39,6 +39,12 @@ const GraphStateAnnotation = Annotation.Root({
   answerCountAtLastOutput: Annotation<number>({ reducer: (_a, b) => b, default: () => 0 }),
   awaitingConfirmation: Annotation<boolean>({ reducer: (_a, b) => b, default: () => false }),
   awaitingDiagramConfirmation: Annotation<boolean>({ reducer: (_a, b) => b, default: () => false }),
+  verified_logics: Annotation<GraphState['verified_logics']>({ reducer: (_a, b) => b, default: () => [] }),
+  awaitingLogicConfirmation: Annotation<boolean>({ reducer: (_a, b) => b, default: () => false }),
+  pendingLogicSlice: Annotation<GraphState['pendingLogicSlice']>({ reducer: (_a, b) => b, default: () => null }),
+  currentFeatureName: Annotation<string>({ reducer: (_a, b) => b, default: () => '' }),
+  currentFeatureAnswerCount: Annotation<number>({ reducer: (_a, b) => b, default: () => 0 }),
+  logicReadiness: Annotation<GraphState['logicReadiness']>({ reducer: (_a, b) => b, default: () => ({ ready: false, reason: '' }) }),
 })
 
 // Graph 1: Interview flow

@@ -22,6 +22,19 @@ export interface FeatureInfo {
   endState: string
 }
 
+export interface VerifiedLogic {
+  featureName: string
+  trigger: string
+  mainFlow: string[]
+  decisionPoints: Array<{
+    condition: string
+    branches: Array<{ case: string; result: string }>
+  }>
+  exceptionFlow: Array<{ name: string; trigger: string; handling: string }>
+  endStates: string[]
+  verifiedAt: number
+}
+
 export interface GraphState {
   phase: 'upload' | 'overview' | 'roles' | 'features' | 'integration' | 'rules' | 'output' | 'review' | 'done'
   systemName: string
@@ -48,6 +61,12 @@ export interface GraphState {
   answerCountAtLastOutput: number
   awaitingConfirmation: boolean
   awaitingDiagramConfirmation: boolean
+  verified_logics: VerifiedLogic[]
+  awaitingLogicConfirmation: boolean
+  pendingLogicSlice: VerifiedLogic | null
+  currentFeatureName: string
+  currentFeatureAnswerCount: number
+  logicReadiness: { ready: boolean; reason: string }
 }
 
 export interface FlowReadiness {
@@ -66,6 +85,7 @@ export interface ChatMessage {
   multiSelect?: boolean
   mermaidPreview?: string
   diagrams?: Array<{ title: string; code: string }>
+  logicSlice?: VerifiedLogic
   actions?: Array<{ label: string; value: string }>
   queued?: boolean
 }

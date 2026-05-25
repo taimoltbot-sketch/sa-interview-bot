@@ -1,0 +1,38 @@
+import type { GraphState } from '../src/types/index'
+
+export function makeBaseState(overrides: Partial<GraphState> = {}): GraphState {
+  return {
+    phase: 'features',
+    systemName: 'TestSystem',
+    uploadedFiles: [],
+    analyzedData: {},
+    missingInfo: [],
+    systemOverview: '',
+    userRoles: [],
+    featureList: [],
+    currentFeatureIndex: 0,
+    features: [],
+    integrations: '',
+    businessRules: '',
+    consolidatedJson: '{"systemName":"TestSystem","features":[]}',
+    generatedDocument: '',
+    generatedHtmlContent: '',
+    generatedMermaid: '',
+    conversationHistory: [],
+    pendingQuestion: '',
+    pendingSuggestions: [],
+    pendingMultiSelect: false,
+    flowReadiness: { ready: false, decisionPointsCount: 0, hasExceptionFlow: false, endStatesCount: 0, reason: '' },
+    revisionTarget: '',
+    answerCountAtLastOutput: 0,
+    awaitingConfirmation: false,
+    awaitingDiagramConfirmation: false,
+    verified_logics: [],
+    awaitingLogicConfirmation: false,
+    pendingLogicSlice: null,
+    currentFeatureName: '',
+    currentFeatureAnswerCount: 0,
+    logicReadiness: { ready: false, reason: '' },
+    ...overrides,
+  }
+}

@@ -48,5 +48,11 @@ export function createInitialState(): GraphState {
     answerCountAtLastOutput: 0,
     awaitingConfirmation: false,
     awaitingDiagramConfirmation: false,
+    verified_logics: [],
+    awaitingLogicConfirmation: false,
+    pendingLogicSlice: null,
+    currentFeatureName: '',
+    currentFeatureAnswerCount: 0,
+    logicReadiness: { ready: false, reason: '' },
   }
 }
