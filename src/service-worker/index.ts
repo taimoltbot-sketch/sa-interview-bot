@@ -70,6 +70,41 @@ function parseDiagrams(mermaidText: string): Array<{ title: string; code: string
   return out
 }
 
+async function enterDiagramReviewOrPreview(
+  outputResult: GraphState,
+  totalAnswers: number
+): Promise<void> {
+  const diagrams = parseDiagrams(outputResult.generatedMermaid)
+  if (diagrams.length === 0) {
+    const finalState: GraphState = { ...outputResult, answerCountAtLastOutput: totalAnswers, awaitingConfirmation: false, awaitingDiagramConfirmation: false }
+    await saveState(finalState)
+    notifySidePanel({
+      type: 'PREVIEW_READY',
+      payload: { document: outputResult.generatedDocument, mermaid: outputResult.generatedMermaid, systemName: outputResult.systemName, htmlContent: outputResult.generatedHtmlContent },
+    })
+    return
+  }
+  const reviewMsg: ChatMessage = {
+    role: 'bot',
+    content: `我已產出 ${diagrams.length} 張流程圖，請逐一檢查（點圖可放大、拖曳、縮放）。確認無誤後點下方按鈕產出完整報告：`,
+    timestamp: Date.now(),
+    diagrams,
+    actions: [
+      { label: '✓ 全部正確，產出完整報告', value: '__CONFIRM_DIAGRAMS__' },
+      { label: '需要修改', value: '我覺得某些流程圖需要調整，請繼續追問細節' },
+    ],
+  }
+  const reviewState: GraphState = {
+    ...outputResult,
+    answerCountAtLastOutput: totalAnswers,
+    awaitingConfirmation: false,
+    awaitingDiagramConfirmation: true,
+    conversationHistory: [...outputResult.conversationHistory, reviewMsg],
+  }
+  await saveState(reviewState)
+  notifySidePanel({ type: 'BOT_MESSAGE', payload: reviewMsg })
+}
+
 chrome.runtime.onMessage.addListener((message: MessageType, _sender, sendResponse) => {
   handleMessage(message)
     .then(sendResponse)
@@ -140,40 +175,7 @@ async function handleMessage(message: MessageType): Promise<unknown> {
         await saveState(outputState)
         const outputResult = await og.invoke(outputState) as GraphState
         const totalAnswers = outputResult.conversationHistory.filter(m => m.role === 'user').length
-
-        const diagrams = parseDiagrams(outputResult.generatedMermaid)
-
-        // No diagrams parsed → skip review, go straight to preview screen
-        if (diagrams.length === 0) {
-          const finalState: GraphState = { ...outputResult, answerCountAtLastOutput: totalAnswers, awaitingConfirmation: false, awaitingDiagramConfirmation: false }
-          await saveState(finalState)
-          notifySidePanel({
-            type: 'PREVIEW_READY',
-            payload: { document: outputResult.generatedDocument, mermaid: outputResult.generatedMermaid, systemName: outputResult.systemName, htmlContent: outputResult.generatedHtmlContent },
-          })
-          return { ok: true }
-        }
-
-        // Show all diagrams in chat for review; only emit PREVIEW_READY after SA confirms
-        const reviewMsg: ChatMessage = {
-          role: 'bot',
-          content: `我已產出 ${diagrams.length} 張流程圖，請逐一檢查（點圖可放大、拖曳、縮放）。確認無誤後點下方按鈕產出完整報告：`,
-          timestamp: Date.now(),
-          diagrams,
-          actions: [
-            { label: '✓ 全部正確，產出完整報告', value: '__CONFIRM_DIAGRAMS__' },
-            { label: '需要修改', value: '我覺得某些流程圖需要調整，請繼續追問細節' },
-          ],
-        }
-        const reviewState: GraphState = {
-          ...outputResult,
-          answerCountAtLastOutput: totalAnswers,
-          awaitingConfirmation: false,
-          awaitingDiagramConfirmation: true,
-          conversationHistory: [...outputResult.conversationHistory, reviewMsg],
-        }
-        await saveState(reviewState)
-        notifySidePanel({ type: 'BOT_MESSAGE', payload: reviewMsg })
+        await enterDiagramReviewOrPreview(outputResult, totalAnswers)
         return { ok: true }
       }
 
