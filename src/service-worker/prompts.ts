@@ -161,6 +161,11 @@ export const CONSOLIDATE_PROMPT = (allData: string) => `根據以下完整的問
 
 ${allData}
 
+🔴 verifiedLogics 是 SA 已逐一明確簽字畫押的邏輯切片。
+- 整合 features[] 時，verifiedLogics 內容**優先採用**作為事實基礎
+- conversationHistory 與 features[] 用來補充 verifiedLogics 沒覆蓋的面向
+- 若兩者衝突，以 verifiedLogics 為準
+
 整合成 developer-ready 的結構化業務資訊。**這份資料會被用來產出流程圖給工程師看，必須具體到「誰點哪個按鈕、系統如何回應、連到哪個模組」**。
 
 **重要 — 每個 mainFlow / exceptionFlow 步驟必須是「角色 → 操作 → 系統反應」三段式**，結構範例（佔位符，請依 SA 實際描述的領域與用詞填入，不要套用本範例的營造/施工/購物車等情境）：

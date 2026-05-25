@@ -17,6 +17,7 @@ export async function consolidateInfoNode(
     systemOverview: state.systemOverview || '',
     userRoles: state.userRoles,
     features: state.features,
+    verifiedLogics: state.verified_logics,
     integrations: state.integrations || '',
     businessRules: state.businessRules || '',
     analyzedData: state.analyzedData,
