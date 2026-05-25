@@ -76,6 +76,18 @@ export default function App() {
         setGenerating(false)
         setQueue([])
         queueRef.current = []
+      } else if (message.type === 'RESET_DONE') {
+        // New project: wipe all local UI state back to the welcome screen.
+        setMessages([])
+        setQueue([])
+        queueRef.current = []
+        setPreviewData({ document: '', mermaid: '', systemName: '', htmlContent: '' })
+        setView('chat')
+        setSessionStarted(false)
+        setLoading(false)
+        loadingRef.current = false
+        setLoadingStatus('')
+        setGenerating(false)
       } else if (message.type === 'ERROR') {
         setMessages(prev => [...prev, {
           role: 'bot' as const,
@@ -154,6 +166,15 @@ export default function App() {
     await chrome.runtime.sendMessage({ type: 'CONTINUE_DISCUSSION' })
   }, [])
 
+  const handleResetAll = useCallback(async () => {
+    const ok = window.confirm('會清除目前專案的所有對話並開啟全新大腦（換討論不同專案時用）。確定要全部刷新嗎？')
+    if (!ok) return
+    setLoading(true)
+    loadingRef.current = true
+    setLoadingStatus('正在清除目前專案並開啟全新大腦...')
+    await chrome.runtime.sendMessage({ type: 'RESET_ALL' })
+  }, [])
+
   return (
     <div className="app">
       <header className="app-header">
@@ -161,9 +182,12 @@ export default function App() {
           <div className="header-icon">✦</div>
           <h1>SA Interview Bot</h1>
         </div>
-        {view === 'preview' && (
-          <button className="back-btn" onClick={() => setView('chat')}>← 返回</button>
-        )}
+        <div className="header-actions">
+          {view === 'preview' && (
+            <button className="back-btn" onClick={() => setView('chat')}>← 返回</button>
+          )}
+          <button className="reset-btn" onClick={handleResetAll} title="清除目前專案、開啟全新大腦" disabled={loading}>🔄 新專案</button>
+        </div>
       </header>
 
       <AnimatePresence mode="wait">

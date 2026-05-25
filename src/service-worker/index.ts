@@ -1,10 +1,11 @@
 import { TabManager } from './tabManager'
 import { buildInterviewGraph, buildOutputGraph } from './graph'
-import { loadState, saveState, createInitialState } from './stateStorage'
+import { loadState, saveState, createInitialState, clearState } from './stateStorage'
 import { understandAnswerNode } from './nodes/understandAnswer'
 import { routeRevisionNode } from './nodes/routeRevision'
 import { generatePreviewFlowchart } from './nodes/generatePreviewFlowchart'
 import { verifyLogicNode } from './nodes/verifyLogic'
+import { UNDERSTAND_IMAGE_PROMPT } from './prompts'
 import { notifyStatus } from './notify'
 import type { GraphState, MessageType, UploadedFile, ChatMessage } from '../types/index'
 
@@ -131,18 +132,78 @@ async function handleMessage(message: MessageType): Promise<unknown> {
     }
 
     case 'FILE_UPLOAD': {
-      notifyStatus('正在開啟 Gemini 大腦...')
-      const { interviewGraph: ig } = await getOrInit()
+      const { tabManager: tm, interviewGraph: ig } = await getOrInit()
       const savedState = await loadState()
+      const files = message.payload as UploadedFile[]
+      const midConversation = !!savedState && savedState.conversationHistory.length > 0
+
+      // Mid-conversation upload: inject the image into the understanding brain
+      // so Gemini actually SEES it, fold the observation into the conversation,
+      // then ask a follow-up. (The interview graph's decide_next_question path
+      // ignores uploadedFiles, so the old code silently dropped mid-chat images.)
+      if (midConversation) {
+        notifyStatus('正在分析您補充的圖片...')
+        const images = files
+          .filter(f => f.type === 'image')
+          .map(f => ({ base64: f.content, mimeType: f.mimeType, filename: f.name }))
+        const excelText = files
+          .filter(f => f.type === 'excel')
+          .map(f => `[Excel：${f.name}]\n${f.content}`)
+          .join('\n\n')
+        const ctx = JSON.stringify({
+          systemOverview: savedState!.systemOverview,
+          currentFeatureName: savedState!.currentFeatureName,
+          pendingQuestion: savedState!.pendingQuestion,
+        })
+        const promptText = excelText
+          ? `${UNDERSTAND_IMAGE_PROMPT(ctx)}\n\n附加 Excel 內容：\n${excelText}`
+          : UNDERSTAND_IMAGE_PROMPT(ctx)
+        const raw = images.length > 0
+          ? await tm!.sendToTabWithImages('understanding', promptText, images)
+          : await tm!.sendToTab('understanding', promptText)
+        let observation = `（補充上傳 ${files.length} 個檔案）`
+        try {
+          const parsed = JSON.parse(raw.match(/\{[\s\S]*\}/)?.[0] ?? '{}') as { imageObservation?: string; currentFeatureName?: string }
+          if (parsed.imageObservation) observation = `（補充上傳圖片）${parsed.imageObservation}`
+          if (parsed.currentFeatureName?.trim()) {
+            savedState!.currentFeatureName = parsed.currentFeatureName.trim()
+          }
+        } catch { /* keep generic observation */ }
+
+        const userMsg: ChatMessage = { role: 'user', content: observation, timestamp: Date.now() }
+        const stateWithObs: GraphState = {
+          ...savedState!,
+          uploadedFiles: files,
+          conversationHistory: [...savedState!.conversationHistory, userMsg],
+        }
+        await saveState(stateWithObs)
+        notifyStatus('正在思考下一個問題...')
+        const result = await ig.invoke(stateWithObs) as GraphState
+        const lastMsg = result.conversationHistory[result.conversationHistory.length - 1]
+        if (lastMsg) notifySidePanel({ type: 'BOT_MESSAGE', payload: lastMsg })
+        return { ok: true }
+      }
+
+      // First-time upload (welcome screen): full analysis via initial_setup.
+      notifyStatus('正在開啟 Gemini 大腦...')
       const state: GraphState = {
         ...(savedState ?? createInitialState()),
-        uploadedFiles: message.payload as UploadedFile[],
+        uploadedFiles: files,
       }
       await saveState(state)
       notifyStatus('正在分析您上傳的資料...')
       const result = await ig.invoke(state) as GraphState
       const lastMsg = result.conversationHistory[result.conversationHistory.length - 1]
       if (lastMsg) notifySidePanel({ type: 'BOT_MESSAGE', payload: lastMsg })
+      return { ok: true }
+    }
+
+    case 'RESET_ALL': {
+      notifyStatus('正在清除目前專案並開啟全新大腦...')
+      const { tabManager: tm } = await getOrInit()
+      await clearState()
+      await tm!.reset()
+      notifySidePanel({ type: 'RESET_DONE' })
       return { ok: true }
     }
 

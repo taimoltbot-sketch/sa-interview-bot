@@ -185,6 +185,25 @@ SA 的回答：${answer}
   "clarificationQuestion": ""
 }`;
 
+// SA uploads an image mid-conversation — understand what the image adds to the
+// CURRENT discussion (not a fresh module analysis). Sent to understanding brain
+// WITH the image pasted, so Gemini can actually see it.
+export const UNDERSTAND_IMAGE_PROMPT = (
+  context: string
+) => `SA 在對話進行中補充上傳了圖片（已貼在上方）。
+
+目前的討論脈絡：${context}
+
+請「看圖」並理解這張圖補充了什麼資訊到目前正在討論的功能（例如：畫面 UI、欄位、流程截圖、ER 圖、權限表等）。
+不要把它當成全新系統重新分析，而是結合目前脈絡解讀。
+
+回傳 JSON（不要有任何 markdown 標記）：
+{
+  "imageObservation": "用一兩句話描述圖片內容與它補充了什麼（這會被當作 SA 的回答記錄進對話）",
+  "extractedInfo": {},
+  "currentFeatureName": "這張圖主要補充哪個功能（沒有明確功能時給空字串）"
+}`;
+
 export const CONSOLIDATE_PROMPT = (allData: string) => `根據以下完整的問答記錄：
 
 ${allData}

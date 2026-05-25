@@ -96,6 +96,8 @@ export type MessageType =
   | { type: 'FILE_UPLOAD'; payload: UploadedFile[] }
   | { type: 'REQUEST_DOWNLOAD' }
   | { type: 'CONTINUE_DISCUSSION' }
+  | { type: 'RESET_ALL' }
+  | { type: 'RESET_DONE' }
   | { type: 'BOT_MESSAGE'; payload: ChatMessage }
   | { type: 'STATE_UPDATE'; payload: Partial<GraphState> }
   | { type: 'PREVIEW_READY'; payload: { document: string; mermaid: string; systemName?: string; htmlContent?: string } }

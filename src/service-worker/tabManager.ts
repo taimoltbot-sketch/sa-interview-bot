@@ -123,6 +123,35 @@ export class TabManager {
     this.attachTabRemovedListener()
   }
 
+  // Start fresh brains for a new project: navigate each existing tab to a new
+  // Gemini conversation (or recreate it if gone), re-send the init prompts, and
+  // capture new session URLs. Reuses the 3 tabs so we don't proliferate windows.
+  async reset(): Promise<void> {
+    const roles: TabRole[] = ['decision', 'understanding', 'output']
+    const inits: Record<TabRole, string> = {
+      decision: DECISION_BRAIN_INIT,
+      understanding: UNDERSTANDING_BRAIN_INIT,
+      output: OUTPUT_BRAIN_INIT,
+    }
+    for (const role of roles) {
+      const id = this.registry[role]
+      const existing = id ? await chrome.tabs.get(id).catch(() => null) : null
+      if (existing) {
+        await chrome.tabs.update(id, { url: GEMINI_URL }).catch(() => {})
+      } else {
+        const tab = await chrome.tabs.create({ url: GEMINI_URL, pinned: true })
+        this.registry[role] = tab.id!
+      }
+      await this.waitForTabReady(this.registry[role])
+      await chrome.tabs.update(this.registry[role], { autoDiscardable: false }).catch(() => {})
+      this.sessionUrls[role] = GEMINI_URL
+    }
+    await Promise.all(roles.map(r => this.sendToTab(r, inits[r])))
+    const urls = await Promise.all(roles.map(r => this.captureSessionUrl(this.registry[r])))
+    roles.forEach((r, i) => { this.sessionUrls[r] = urls[i] })
+    await this.saveSessions()
+  }
+
   private attachTabRemovedListener(): void {
     chrome.tabs.onRemoved.addListener((tabId) => {
       const role = this.getRoleByTabId(tabId)

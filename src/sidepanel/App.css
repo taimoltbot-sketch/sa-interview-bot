@@ -75,6 +75,30 @@ body {
   letter-spacing: -0.2px;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.reset-btn {
+  background: none;
+  border: 1px solid var(--border-light);
+  color: var(--text-secondary);
+  padding: 5px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 12px;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+.reset-btn:hover:not(:disabled) {
+  border-color: var(--ai-accent);
+  color: var(--ai-accent);
+  background: var(--ai-accent-light);
+}
+.reset-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
 .back-btn {
   background: none;
   border: 1px solid var(--border-light);
