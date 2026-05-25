@@ -1,30 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import type { GraphState } from '../../src/types/index'
+import { makeBaseState } from '../_fixtures'
 
 const mockTabManager = { sendToTab: vi.fn() }
 
 beforeEach(() => vi.resetAllMocks())
 
-const baseState: GraphState = {
+const baseState = makeBaseState({
   phase: 'output',
-  systemName: 'TestSystem',
-  uploadedFiles: [],
-  analyzedData: {},
-  missingInfo: [],
-  systemOverview: '',
-  userRoles: [],
-  featureList: [],
-  currentFeatureIndex: 0,
-  features: [],
-  integrations: '',
-  businessRules: '',
   consolidatedJson: '{"systemName":"TestSystem","features":[]}',
-  generatedDocument: '',
-  generatedMermaid: '',
-  conversationHistory: [],
-  pendingQuestion: '',
-  revisionTarget: '',
-}
+})
 
 describe('generateDocumentNode', () => {
   it('calls output tab with consolidatedJson and returns document', async () => {

@@ -4,8 +4,17 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 type AnyMock = ReturnType<typeof vi.fn<any>>
 
 beforeEach(() => {
+  vi.resetModules()
   vi.resetAllMocks()
   vi.useFakeTimers()
+
+  // Restore mocks that must always resolve (reset by vi.resetAllMocks)
+  ;(vi.mocked(chrome.tabs.get) as AnyMock)
+    .mockResolvedValue({ status: 'complete', url: 'https://gemini.google.com/app/abc123' })
+  ;(vi.mocked(chrome.tabs.update) as AnyMock)
+    .mockResolvedValue({})
+  ;(vi.mocked(chrome.storage.session.set) as AnyMock)
+    .mockResolvedValue(undefined)
 })
 
 afterEach(() => {
@@ -58,13 +67,21 @@ describe('TabManager', () => {
       .mockResolvedValueOnce({ id: 10 } as chrome.tabs.Tab)
       .mockResolvedValueOnce({ id: 20 } as chrome.tabs.Tab)
       .mockResolvedValueOnce({ id: 30 } as chrome.tabs.Tab)
-    // init succeeds
+
+    // Mock sendMessage: PING always succeeds (waitForTabReady), first 3 SEND_PROMPT
+    // calls succeed (init), all subsequent SEND_PROMPT calls fail (the test's sendToTab).
+    let sendPromptCallCount = 0
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ;(vi.mocked(chrome.tabs.sendMessage) as AnyMock)
-      .mockResolvedValueOnce({ success: true, response: 'ok' })
-      .mockResolvedValueOnce({ success: true, response: 'ok' })
-      .mockResolvedValueOnce({ success: true, response: 'ok' })
-      // sendToTab fails 3 times
-      .mockResolvedValue({ success: false, error: 'Tab error' })
+      .mockImplementation((_tabId: any, msg: any) => {
+        if (msg.type === 'PING') return Promise.resolve({ success: true, response: 'pong' })
+        // SEND_PROMPT or SEND_PROMPT_WITH_IMAGES
+        sendPromptCallCount++
+        if (sendPromptCallCount <= 3) {
+          return Promise.resolve({ success: true, response: 'ok' })
+        }
+        return Promise.resolve({ success: false, error: 'Tab error' })
+      })
 
     const { TabManager } = await import('../src/service-worker/tabManager')
     const manager = new TabManager()
@@ -78,6 +95,6 @@ describe('TabManager', () => {
     const caught = sendPromise.catch((err: Error) => err)
     await vi.runAllTimersAsync()
     const result = await caught
-    expect((result as Error).message).toContain('failed after 3 retries')
+    expect((result as Error).message).toContain('failed after 8 retries')
   })
 })

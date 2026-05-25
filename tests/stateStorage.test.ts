@@ -1,28 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import type { GraphState } from '../src/types/index'
+import { makeBaseState } from './_fixtures'
 
 vi.resetModules()
 
-const mockState: GraphState = {
-  phase: 'overview',
-  systemName: 'TestSystem',
-  uploadedFiles: [],
-  analyzedData: {},
-  missingInfo: [],
-  systemOverview: '',
-  userRoles: [],
-  featureList: [],
-  currentFeatureIndex: 0,
-  features: [],
-  integrations: '',
-  businessRules: '',
-  consolidatedJson: '',
-  generatedDocument: '',
-  generatedMermaid: '',
-  conversationHistory: [],
-  pendingQuestion: '',
-  revisionTarget: '',
-}
+const mockState = makeBaseState({ phase: 'overview', systemName: 'TestSystem' })
 
 beforeEach(() => {
   vi.resetAllMocks()
