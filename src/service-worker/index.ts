@@ -4,6 +4,7 @@ import { loadState, saveState, createInitialState } from './stateStorage'
 import { understandAnswerNode } from './nodes/understandAnswer'
 import { routeRevisionNode } from './nodes/routeRevision'
 import { generatePreviewFlowchart } from './nodes/generatePreviewFlowchart'
+import { verifyLogicNode } from './nodes/verifyLogic'
 import { notifyStatus } from './notify'
 import type { GraphState, MessageType, UploadedFile, ChatMessage } from '../types/index'
 
@@ -190,52 +191,99 @@ async function handleMessage(message: MessageType): Promise<unknown> {
         return { ok: true }
       }
 
+      // Special: user confirmed a verify_logic slice → store it, then decide
+      // whether to continue interviewing or auto-fire the output graph.
+      if (savedState.awaitingLogicConfirmation && message.payload === '__CONFIRM_LOGIC__') {
+        const slice = savedState.pendingLogicSlice
+        if (!slice) {
+          notifySidePanel({ type: 'ERROR', payload: 'pendingLogicSlice 遺失，請重新回答一次' })
+          return { ok: true }
+        }
+        const updated: GraphState = {
+          ...savedState,
+          verified_logics: [...savedState.verified_logics, slice],
+          awaitingLogicConfirmation: false,
+          pendingLogicSlice: null,
+          currentFeatureAnswerCount: 0,
+        }
+        await saveState(updated)
+        notifySidePanel({ type: 'BOT_MESSAGE', payload: {
+          role: 'bot',
+          content: `✓ 已記錄「${slice.featureName}」邏輯。已累計 ${updated.verified_logics.length} 個切片。`,
+          timestamp: Date.now(),
+        }})
+
+        const result = await ig.invoke(updated) as GraphState
+        const lastMsg = result.conversationHistory[result.conversationHistory.length - 1]
+        const interviewDone = result.flowReadiness?.ready === true && result.verified_logics.length >= 2
+
+        if (interviewDone) {
+          notifySidePanel({ type: 'GENERATING_OUTPUT' })
+          notifyStatus('正在彙整所有已確認邏輯，產出完整報告...')
+          const outputState: GraphState = { ...result, phase: 'output' }
+          await saveState(outputState)
+          const outputResult = await og.invoke(outputState) as GraphState
+          const totalAnswers = outputResult.conversationHistory.filter(m => m.role === 'user').length
+          await enterDiagramReviewOrPreview(outputResult, totalAnswers)
+        } else {
+          if (lastMsg) notifySidePanel({ type: 'BOT_MESSAGE', payload: lastMsg })
+        }
+        return { ok: true }
+      }
+
       // If user typed a normal reply while awaiting confirmation → treat as revision request, continue interview
-      const stateForFlow: GraphState = (savedState.awaitingConfirmation || savedState.awaitingDiagramConfirmation)
-        ? { ...savedState, awaitingConfirmation: false, awaitingDiagramConfirmation: false }
+      const stateForFlow: GraphState = (savedState.awaitingConfirmation || savedState.awaitingDiagramConfirmation || savedState.awaitingLogicConfirmation)
+        ? { ...savedState, awaitingConfirmation: false, awaitingDiagramConfirmation: false, awaitingLogicConfirmation: false, pendingLogicSlice: null }
         : savedState
 
       notifyStatus('正在理解您的回答...')
       const update = await understandAnswerNode(stateForFlow, tm!, message.payload as string)
-      const updatedState: GraphState = { ...stateForFlow, ...update }
+      const newFeatureName = update.currentFeatureName ?? stateForFlow.currentFeatureName
+      const featureChanged = !!newFeatureName && newFeatureName !== stateForFlow.currentFeatureName
+      const countAfter = featureChanged ? 1 : (stateForFlow.currentFeatureAnswerCount ?? 0) + 1
+      const updatedState: GraphState = {
+        ...stateForFlow,
+        ...update,
+        currentFeatureName: newFeatureName,
+        currentFeatureAnswerCount: countAfter,
+      }
 
       await saveState(updatedState)
       notifyStatus('正在思考下一個問題...')
       const result = await ig.invoke(updatedState) as GraphState
       const lastMsg = result.conversationHistory[result.conversationHistory.length - 1]
 
-      // Auto-trigger flowchart preview: defer to the decision brain's own assessment
-      // of whether the current module's flow has enough branching to be useful
-      const totalAnswers = result.conversationHistory.filter(m => m.role === 'user').length
-      const newAnswers = totalAnswers - (result.answerCountAtLastOutput ?? 0)
-      const isDone = result.phase === 'done'
-      const flowReady = result.flowReadiness?.ready === true
-        && result.flowReadiness.decisionPointsCount >= 2
-        && result.flowReadiness.hasExceptionFlow === true
-      const reachedLimit = newAnswers >= 8 // hard ceiling so we don't loop forever
+      // After interview graph runs, decide whether to fire a verify_logic
+      // checkpoint. Replaces the old generatePreviewFlowchart trigger.
+      // (generatePreviewFlowchart.ts is kept as dead code for now.)
+      const logicReady = result.logicReadiness?.ready === true
+      const reachedCap = (result.currentFeatureAnswerCount ?? 0) >= 6
 
-      if (isDone || (flowReady && newAnswers >= 3) || reachedLimit) {
-        // STAGE 1: generate quick inline flowchart for SA confirmation (don't run full output yet)
+      if (logicReady || reachedCap) {
         notifySidePanel({ type: 'GENERATING_OUTPUT' })
-        notifyStatus('正在繪製主流程預覽圖...')
-        const previewMermaid = await generatePreviewFlowchart(result, tm!)
-        const confirmMsg: ChatMessage = {
+        const slice = await verifyLogicNode(result, tm!)
+        if (!slice) {
+          if (lastMsg) notifySidePanel({ type: 'BOT_MESSAGE', payload: lastMsg })
+          return { ok: true }
+        }
+        const verifyMsg: ChatMessage = {
           role: 'bot',
-          content: '我已根據您的回答整理出主業務流程，請確認流程是否正確：',
+          content: `請確認以下「${slice.featureName}」的業務邏輯是否正確：`,
           timestamp: Date.now(),
-          mermaidPreview: previewMermaid,
+          logicSlice: slice,
           actions: [
-            { label: '✓ 正確，產出完整報告', value: '__CONFIRM_OUTPUT__' },
-            { label: '需要修改', value: '我覺得流程有些地方需要調整，請繼續追問細節' },
+            { label: '✓ 沒錯，記錄此邏輯', value: '__CONFIRM_LOGIC__' },
+            { label: '❌ 不對，我要調整', value: '我覺得這個邏輯有錯，請繼續追問細節' },
           ],
         }
-        const confirmState: GraphState = {
+        const verifyState: GraphState = {
           ...result,
-          awaitingConfirmation: true,
-          conversationHistory: [...result.conversationHistory, confirmMsg],
+          awaitingLogicConfirmation: true,
+          pendingLogicSlice: slice,
+          conversationHistory: [...result.conversationHistory, verifyMsg],
         }
-        await saveState(confirmState)
-        notifySidePanel({ type: 'BOT_MESSAGE', payload: confirmMsg })
+        await saveState(verifyState)
+        notifySidePanel({ type: 'BOT_MESSAGE', payload: verifyMsg })
       } else {
         if (lastMsg) notifySidePanel({ type: 'BOT_MESSAGE', payload: lastMsg })
       }
