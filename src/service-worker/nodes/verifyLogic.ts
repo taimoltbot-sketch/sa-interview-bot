@@ -22,8 +22,16 @@ export async function verifyLogicNode(
     return null
   }
   try {
-    const parsed = JSON.parse(json) as Omit<VerifiedLogic, 'verifiedAt'>
-    return { ...parsed, verifiedAt: Date.now() }
+    const p = JSON.parse(json) as Record<string, unknown>
+    return {
+      featureName: typeof p.featureName === 'string' && p.featureName ? p.featureName : (state.currentFeatureName ?? ''),
+      trigger: typeof p.trigger === 'string' ? p.trigger : '',
+      mainFlow: Array.isArray(p.mainFlow) ? p.mainFlow as string[] : [],
+      decisionPoints: Array.isArray(p.decisionPoints) ? p.decisionPoints as VerifiedLogic['decisionPoints'] : [],
+      exceptionFlow: Array.isArray(p.exceptionFlow) ? p.exceptionFlow as VerifiedLogic['exceptionFlow'] : [],
+      endStates: Array.isArray(p.endStates) ? p.endStates as string[] : [],
+      verifiedAt: Date.now(),
+    }
   } catch {
     console.warn('[verifyLogic] JSON parse failed')
     return null

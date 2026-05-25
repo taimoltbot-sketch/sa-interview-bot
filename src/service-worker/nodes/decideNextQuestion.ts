@@ -59,6 +59,8 @@ export async function decideNextQuestionNode(
     suggestions?: string[]
     multiSelect?: boolean
     flowReadiness?: unknown
+    logicReadiness?: { ready?: boolean; reason?: string }
+    currentFeatureName?: string
   }
   return {
     phase: (parsed.nextPhase || 'overview') as GraphState['phase'],
@@ -66,5 +68,12 @@ export async function decideNextQuestionNode(
     pendingSuggestions: Array.isArray(parsed.suggestions) ? parsed.suggestions : [],
     pendingMultiSelect: parsed.multiSelect === true,
     flowReadiness: normalizeReadiness(parsed.flowReadiness),
+    logicReadiness: {
+      ready: parsed.logicReadiness?.ready === true,
+      reason: parsed.logicReadiness?.reason ?? '',
+    },
+    ...(typeof parsed.currentFeatureName === 'string' && parsed.currentFeatureName.trim()
+      ? { currentFeatureName: parsed.currentFeatureName.trim() }
+      : {}),
   }
 }

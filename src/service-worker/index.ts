@@ -257,7 +257,8 @@ async function handleMessage(message: MessageType): Promise<unknown> {
       // checkpoint. Replaces the old generatePreviewFlowchart trigger.
       // (generatePreviewFlowchart.ts is kept as dead code for now.)
       const logicReady = result.logicReadiness?.ready === true
-      const reachedCap = (result.currentFeatureAnswerCount ?? 0) >= 6
+      const cnt = result.currentFeatureAnswerCount ?? 0
+      const reachedCap = cnt >= 6 && (cnt - 6) % 3 === 0
 
       if (logicReady || reachedCap) {
         notifySidePanel({ type: 'GENERATING_OUTPUT' })

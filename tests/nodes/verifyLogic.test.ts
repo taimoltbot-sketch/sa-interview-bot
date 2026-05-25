@@ -41,4 +41,24 @@ describe('verifyLogicNode', () => {
     const result = await verifyLogicNode(makeBaseState({}), mockTabManager as any)
     expect(result).toBeNull()
   })
+
+  it('normalizes missing mainFlow and endStates to empty arrays', async () => {
+    mockTabManager.sendToTab.mockResolvedValue(`整理如下：
+{
+  "featureName": "審批流程",
+  "trigger": "主管點擊審批按鈕",
+  "decisionPoints": [],
+  "exceptionFlow": []
+}`)
+    const { verifyLogicNode } = await import('../../src/service-worker/nodes/verifyLogic')
+    const state = makeBaseState({ currentFeatureName: '審批流程', conversationHistory: [
+      { role: 'bot', content: '審批規則?', timestamp: 1 },
+      { role: 'user', content: '主管審批後才能送出', timestamp: 2 },
+    ]})
+    const result = await verifyLogicNode(state, mockTabManager as any)
+    expect(result).not.toBeNull()
+    expect(result!.mainFlow).toEqual([])
+    expect(result!.endStates).toEqual([])
+    expect(result!.featureName).toBe('審批流程')
+  })
 })
